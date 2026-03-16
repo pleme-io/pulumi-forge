@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
+use iac_forge::IacForgeError;
 use iac_forge::backend::{ArtifactKind, Backend, GeneratedArtifact, NamingConvention};
 use iac_forge::ir::{IacAttribute, IacDataSource, IacProvider, IacResource, IacType};
 use iac_forge::naming::{strip_provider_prefix, to_camel_case};
-use iac_forge::IacForgeError;
 
 use crate::schema::{
     FunctionSchema, ObjectTypeSpec, PropertySpec, ProviderResource, PulumiSchema, ResourceSchema,
@@ -66,6 +66,17 @@ impl PulumiBackend {
             functions.insert(type_token, self.data_source_to_function(ds));
         }
 
+        let provider_props = self.provider_input_properties(provider);
+
+        // Build config section from provider auth fields
+        let mut config = BTreeMap::new();
+        if !provider_props.is_empty() {
+            config.insert(
+                "variables".to_string(),
+                serde_json::to_value(&provider_props).unwrap_or_else(|_| serde_json::json!({})),
+            );
+        }
+
         Ok(PulumiSchema {
             name: provider.name.clone(),
             display_name: Some(capitalize_first(&provider.name)),
@@ -74,23 +85,30 @@ impl PulumiBackend {
             homepage: None,
             repository: None,
             publisher: None,
-            config: BTreeMap::new(),
+            config,
             provider: ProviderResource {
                 description: Some(provider.description.clone()),
-                input_properties: self.provider_input_properties(provider),
+                input_properties: provider_props,
                 required_inputs: vec![],
             },
             resources: schema_resources,
             functions,
             types: BTreeMap::new(),
-            language: serde_json::json!({}),
+            language: serde_json::json!({
+                "nodejs": {
+                    "packageName": format!("@pulumi/{}", provider.name),
+                },
+                "python": {
+                    "packageName": format!("pulumi_{}", provider.name),
+                },
+                "go": {
+                    "generateResourceContainerTypes": true,
+                },
+            }),
         })
     }
 
-    fn provider_input_properties(
-        &self,
-        provider: &IacProvider,
-    ) -> BTreeMap<String, PropertySpec> {
+    fn provider_input_properties(&self, provider: &IacProvider) -> BTreeMap<String, PropertySpec> {
         let mut props = BTreeMap::new();
         if !provider.auth.gateway_url_field.is_empty() {
             props.insert(
@@ -192,14 +210,10 @@ impl PulumiBackend {
             } else {
                 Some(ds.description.clone())
             },
-            inputs: if input_props.is_empty() {
-                None
-            } else {
-                Some(ObjectTypeSpec {
-                    properties: input_props,
-                    required: input_required,
-                })
-            },
+            inputs: Some(ObjectTypeSpec {
+                properties: input_props,
+                required: input_required,
+            }),
             outputs: Some(ObjectTypeSpec {
                 properties: output_props,
                 required: output_required,
@@ -303,6 +317,22 @@ fn iac_attr_to_property(attr: &IacAttribute) -> PropertySpec {
     }
 }
 
+/// Build a complete `PropertySpec` from an `IacType`, preserving nested structure.
+fn iac_type_to_property_spec(iac_type: &IacType) -> PropertySpec {
+    let (schema_type, items, additional_properties, enum_values) = iac_type_to_pulumi(iac_type);
+    PropertySpec {
+        schema_type,
+        description: None,
+        secret: None,
+        default: None,
+        items,
+        additional_properties,
+        ref_path: None,
+        replace_on_changes: None,
+        enum_values,
+    }
+}
+
 /// Map `IacType` to Pulumi schema type components.
 fn iac_type_to_pulumi(
     iac_type: &IacType,
@@ -318,52 +348,41 @@ fn iac_type_to_pulumi(
         IacType::Float => (Some("number".into()), None, None, None),
         IacType::Boolean => (Some("boolean".into()), None, None, None),
         IacType::List(inner) | IacType::Set(inner) => {
-            let (inner_type, _, _, _) = iac_type_to_pulumi(inner);
-            (
-                Some("array".into()),
-                Some(Box::new(PropertySpec {
-                    schema_type: inner_type,
-                    description: None,
-                    secret: None,
-                    default: None,
-                    items: None,
-                    additional_properties: None,
-                    ref_path: None,
-                    replace_on_changes: None,
-                    enum_values: None,
-                })),
-                None,
-                None,
-            )
+            let inner_prop = iac_type_to_property_spec(inner);
+            (Some("array".into()), Some(Box::new(inner_prop)), None, None)
         }
         IacType::Map(inner) => {
-            let (inner_type, _, _, _) = iac_type_to_pulumi(inner);
+            let inner_prop = iac_type_to_property_spec(inner);
             (
                 Some("object".into()),
                 None,
-                Some(Box::new(PropertySpec {
-                    schema_type: inner_type,
-                    description: None,
-                    secret: None,
-                    default: None,
-                    items: None,
-                    additional_properties: None,
-                    ref_path: None,
-                    replace_on_changes: None,
-                    enum_values: None,
-                })),
+                Some(Box::new(inner_prop)),
                 None,
             )
         }
+        // NOTE: IacType::Object fields are always empty per iac-forge design.
+        // Full $ref support (types section population) is a known limitation.
         IacType::Object { .. } => (Some("object".into()), None, None, None),
-        IacType::Enum {
-            values,
-            underlying,
-        } => {
+        IacType::Enum { values, underlying } => {
             let (base_type, _, _, _) = iac_type_to_pulumi(underlying);
             let vals: Vec<serde_json::Value> = values
                 .iter()
-                .map(|v| serde_json::Value::String(v.clone()))
+                .map(|v| match underlying.as_ref() {
+                    IacType::Integer => v.parse::<i64>().map_or_else(
+                        |_| serde_json::Value::String(v.clone()),
+                        |n| serde_json::json!(n),
+                    ),
+                    IacType::Float => v.parse::<f64>().map_or_else(
+                        |_| serde_json::Value::String(v.clone()),
+                        |n| serde_json::json!(n),
+                    ),
+                    IacType::Boolean => match v.as_str() {
+                        "true" => serde_json::Value::Bool(true),
+                        "false" => serde_json::Value::Bool(false),
+                        _ => serde_json::Value::String(v.clone()),
+                    },
+                    _ => serde_json::Value::String(v.clone()),
+                })
                 .collect();
             (base_type, None, None, Some(vals))
         }
@@ -572,10 +591,7 @@ mod tests {
         assert_eq!(schema.name, "acme");
         assert_eq!(schema.version, "1.0.0");
         assert_eq!(schema.display_name.as_deref(), Some("Acme"));
-        assert_eq!(
-            schema.description.as_deref(),
-            Some("Acme cloud provider")
-        );
+        assert_eq!(schema.description.as_deref(), Some("Acme cloud provider"));
     }
 
     #[test]
@@ -759,11 +775,7 @@ mod tests {
             serde_json::from_str(&artifacts[0].content).expect("should be valid JSON");
         assert_eq!(parsed.name, "acme");
         assert!(parsed.resources.contains_key("acme:index:StaticSecret"));
-        assert!(
-            parsed
-                .functions
-                .contains_key("acme:index:getSecretValue")
-        );
+        assert!(parsed.functions.contains_key("acme:index:getSecretValue"));
     }
 
     #[test]
@@ -854,5 +866,191 @@ mod tests {
         let enums = method_prop.enum_values.as_ref().unwrap();
         assert_eq!(enums.len(), 3);
         assert_eq!(enums[0], serde_json::Value::String("api_key".into()));
+    }
+
+    #[test]
+    fn nested_list_of_list_type_mapping() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let resource = IacResource {
+            name: "acme_matrix".to_string(),
+            description: "A matrix resource".to_string(),
+            category: "data".to_string(),
+            crud: test_crud(),
+            attributes: vec![IacAttribute {
+                api_name: "grid".to_string(),
+                canonical_name: "grid".to_string(),
+                description: "A list of lists of strings".to_string(),
+                iac_type: IacType::List(Box::new(IacType::List(Box::new(IacType::String)))),
+                required: false,
+                computed: false,
+                sensitive: false,
+                immutable: false,
+                default_value: None,
+                enum_values: None,
+                read_path: None,
+            }],
+            identity: test_identity(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[])
+            .expect("schema generation should succeed");
+
+        let res = &schema.resources["acme:index:Matrix"];
+        let grid_prop = &res.properties["grid"];
+
+        // Outer: array
+        assert_eq!(grid_prop.schema_type.as_deref(), Some("array"));
+        assert!(grid_prop.items.is_some());
+
+        // Inner items: also array
+        let inner = grid_prop.items.as_ref().unwrap();
+        assert_eq!(inner.schema_type.as_deref(), Some("array"));
+        assert!(inner.items.is_some(), "nested list should have items");
+
+        // Innermost: string
+        let innermost = inner.items.as_ref().unwrap();
+        assert_eq!(innermost.schema_type.as_deref(), Some("string"));
+    }
+
+    #[test]
+    fn enum_with_integer_underlying_type() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let resource = IacResource {
+            name: "acme_priority".to_string(),
+            description: "A priority resource".to_string(),
+            category: "config".to_string(),
+            crud: test_crud(),
+            attributes: vec![IacAttribute {
+                api_name: "level".to_string(),
+                canonical_name: "level".to_string(),
+                description: "Priority level".to_string(),
+                iac_type: IacType::Enum {
+                    values: vec!["1".into(), "2".into(), "3".into()],
+                    underlying: Box::new(IacType::Integer),
+                },
+                required: true,
+                computed: false,
+                sensitive: false,
+                immutable: false,
+                default_value: None,
+                enum_values: None,
+                read_path: None,
+            }],
+            identity: test_identity(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[])
+            .expect("schema generation should succeed");
+
+        let res = &schema.resources["acme:index:Priority"];
+        let level_prop = &res.properties["level"];
+        assert_eq!(level_prop.schema_type.as_deref(), Some("integer"));
+        assert!(level_prop.enum_values.is_some());
+        let enums = level_prop.enum_values.as_ref().unwrap();
+        assert_eq!(enums.len(), 3);
+        // Values should be JSON numbers, not strings
+        assert_eq!(enums[0], serde_json::json!(1));
+        assert_eq!(enums[1], serde_json::json!(2));
+        assert_eq!(enums[2], serde_json::json!(3));
+    }
+
+    #[test]
+    fn data_source_no_inputs_produces_empty_object_type_spec() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        // Data source where all attributes are computed (no user inputs)
+        let ds = IacDataSource {
+            name: "acme_current_user".to_string(),
+            description: "Get the current user".to_string(),
+            read_endpoint: "GET /me".to_string(),
+            read_schema: "GetMeRequest".to_string(),
+            read_response_schema: Some("GetMeResponse".to_string()),
+            attributes: vec![IacAttribute {
+                api_name: "email".to_string(),
+                canonical_name: "email".to_string(),
+                description: "User email".to_string(),
+                iac_type: IacType::String,
+                required: false,
+                computed: true,
+                sensitive: false,
+                immutable: false,
+                default_value: None,
+                enum_values: None,
+                read_path: None,
+            }],
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[ds])
+            .expect("schema generation should succeed");
+
+        let func = &schema.functions["acme:index:getCurrentUser"];
+        // inputs should be Some with empty properties, not None
+        assert!(
+            func.inputs.is_some(),
+            "data source with no inputs should still have Some(ObjectTypeSpec)"
+        );
+        let inputs = func.inputs.as_ref().unwrap();
+        assert!(
+            inputs.properties.is_empty(),
+            "input properties should be empty"
+        );
+        assert!(
+            inputs.required.is_empty(),
+            "required inputs should be empty"
+        );
+    }
+
+    #[test]
+    fn provider_config_populated_from_auth() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .expect("schema generation should succeed");
+
+        assert!(
+            !schema.config.is_empty(),
+            "config section should not be empty when provider has auth fields"
+        );
+        assert!(
+            schema.config.contains_key("variables"),
+            "config should have a variables key"
+        );
+        let variables = &schema.config["variables"];
+        assert!(
+            variables.get("apiUrl").is_some(),
+            "config variables should contain apiUrl"
+        );
+        assert!(
+            variables.get("apiToken").is_some(),
+            "config variables should contain apiToken"
+        );
+    }
+
+    #[test]
+    fn language_section_populated() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .expect("schema generation should succeed");
+
+        assert!(schema.language.get("nodejs").is_some());
+        assert_eq!(schema.language["nodejs"]["packageName"], "@pulumi/acme");
+        assert!(schema.language.get("python").is_some());
+        assert_eq!(schema.language["python"]["packageName"], "pulumi_acme");
+        assert!(schema.language.get("go").is_some());
+        assert_eq!(
+            schema.language["go"]["generateResourceContainerTypes"],
+            true
+        );
     }
 }
