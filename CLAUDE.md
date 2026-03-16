@@ -38,10 +38,12 @@ IacType::Any          -> { "$ref": "pulumi.json#/Any" }
 
 ## Language Configs
 
-The generated `schema.json` includes language-specific configuration:
-- **nodejs** -- package name, dependencies (@pulumi/pulumi)
-- **python** -- package name, requires (pulumi>=3.0.0)
-- **go** -- module path, import base path
+The generated `schema.json` includes language-specific configuration for all 5 targets:
+- **nodejs** -- packageName, packageDescription, respectSchemaVersion
+- **python** -- packageName, pyproject, inputTypes, respectSchemaVersion
+- **go** -- importBasePath, generateResourceContainerTypes, respectSchemaVersion
+- **csharp** -- packageReferences, rootNamespace, respectSchemaVersion
+- **java** -- basePackage, buildFiles, gradle, Maven dependencies
 
 ## Source Layout
 
