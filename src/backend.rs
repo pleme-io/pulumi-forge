@@ -97,13 +97,35 @@ impl PulumiBackend {
             language: serde_json::json!({
                 "nodejs": {
                     "packageName": format!("@pulumi/{}", provider.name),
+                    "packageDescription": format!("A Pulumi package for managing {} resources.", capitalize_first(&provider.name)),
+                    "respectSchemaVersion": true
                 },
                 "python": {
                     "packageName": format!("pulumi_{}", provider.name),
+                    "respectSchemaVersion": true,
+                    "pyproject": { "enabled": true },
+                    "inputTypes": "classes-and-dicts"
                 },
                 "go": {
+                    "importBasePath": format!("github.com/pleme-io/pulumi-{}/sdk/go/{}", provider.name, provider.name),
                     "generateResourceContainerTypes": true,
+                    "respectSchemaVersion": true
                 },
+                "csharp": {
+                    "packageReferences": { "Pulumi": "3.*" },
+                    "rootNamespace": "Pulumi",
+                    "respectSchemaVersion": true
+                },
+                "java": {
+                    "basePackage": format!("com.pulumi.{}", provider.name),
+                    "buildFiles": "gradle",
+                    "gradleNexusPublishPluginVersion": "2.0.0",
+                    "dependencies": {
+                        "com.google.code.findbugs:jsr305": "3.0.2",
+                        "com.google.code.gson:gson": "2.8.9",
+                        "com.pulumi:pulumi": "1.0.0"
+                    }
+                }
             }),
         })
     }
@@ -1055,15 +1077,28 @@ mod tests {
             .generate_schema(&provider, &[], &[])
             .expect("schema generation should succeed");
 
+        // All 5 languages configured
         assert!(schema.language.get("nodejs").is_some());
         assert_eq!(schema.language["nodejs"]["packageName"], "@pulumi/acme");
+        assert_eq!(schema.language["nodejs"]["respectSchemaVersion"], true);
+
         assert!(schema.language.get("python").is_some());
         assert_eq!(schema.language["python"]["packageName"], "pulumi_acme");
+        assert_eq!(schema.language["python"]["pyproject"]["enabled"], true);
+        assert_eq!(schema.language["python"]["inputTypes"], "classes-and-dicts");
+
         assert!(schema.language.get("go").is_some());
-        assert_eq!(
-            schema.language["go"]["generateResourceContainerTypes"],
-            true
-        );
+        assert_eq!(schema.language["go"]["generateResourceContainerTypes"], true);
+        assert_eq!(schema.language["go"]["respectSchemaVersion"], true);
+        assert!(schema.language["go"]["importBasePath"].as_str().unwrap().contains("pulumi-acme"));
+
+        assert!(schema.language.get("csharp").is_some());
+        assert_eq!(schema.language["csharp"]["rootNamespace"], "Pulumi");
+        assert_eq!(schema.language["csharp"]["respectSchemaVersion"], true);
+
+        assert!(schema.language.get("java").is_some());
+        assert_eq!(schema.language["java"]["buildFiles"], "gradle");
+        assert!(schema.language["java"]["basePackage"].as_str().unwrap().contains("acme"));
     }
 
     /// Build a resource with ALL IacType variants to verify exhaustive type mapping.
