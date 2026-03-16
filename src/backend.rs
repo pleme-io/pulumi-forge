@@ -471,6 +471,7 @@ mod tests {
                     default_value: None,
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
                 IacAttribute {
                     api_name: "value".to_string(),
@@ -484,6 +485,7 @@ mod tests {
                     default_value: None,
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
                 IacAttribute {
                     api_name: "tags".to_string(),
@@ -497,6 +499,7 @@ mod tests {
                     default_value: None,
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
                 IacAttribute {
                     api_name: "metadata".to_string(),
@@ -510,6 +513,7 @@ mod tests {
                     default_value: None,
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
                 IacAttribute {
                     api_name: "enabled".to_string(),
@@ -523,6 +527,7 @@ mod tests {
                     default_value: Some(serde_json::Value::Bool(true)),
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
                 IacAttribute {
                     api_name: "id".to_string(),
@@ -536,6 +541,7 @@ mod tests {
                     default_value: None,
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
             ],
             identity: test_identity(),
@@ -562,6 +568,7 @@ mod tests {
                     default_value: None,
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
                 IacAttribute {
                     api_name: "value".to_string(),
@@ -575,6 +582,7 @@ mod tests {
                     default_value: None,
                     enum_values: None,
                     read_path: None,
+                    update_only: false,
                 },
             ],
         }
@@ -851,6 +859,7 @@ mod tests {
                 default_value: None,
                 enum_values: None,
                 read_path: None,
+                update_only: false,
             }],
             identity: test_identity(),
         };
@@ -890,6 +899,7 @@ mod tests {
                 default_value: None,
                 enum_values: None,
                 read_path: None,
+                update_only: false,
             }],
             identity: test_identity(),
         };
@@ -940,6 +950,7 @@ mod tests {
                 default_value: None,
                 enum_values: None,
                 read_path: None,
+                update_only: false,
             }],
             identity: test_identity(),
         };
@@ -984,6 +995,7 @@ mod tests {
                 default_value: None,
                 enum_values: None,
                 read_path: None,
+                update_only: false,
             }],
         };
 
