@@ -1680,4 +1680,1014 @@ mod tests {
             schema.resources.keys().collect::<Vec<_>>()
         );
     }
+
+    // ---- Coverage gap: computed+required attribute should appear in BOTH inputs and outputs ----
+
+    #[test]
+    fn computed_and_required_field_appears_in_inputs() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let resource = IacResource {
+            name: "acme_server".to_string(),
+            description: "A server".to_string(),
+            category: "compute".to_string(),
+            crud: test_crud(),
+            attributes: vec![
+                IacAttribute {
+                    api_name: "name".to_string(),
+                    canonical_name: "name".to_string(),
+                    description: "Server name".to_string(),
+                    iac_type: IacType::String,
+                    required: true,
+                    computed: true,
+                    sensitive: false,
+                    immutable: false,
+                    default_value: None,
+                    enum_values: None,
+                    read_path: None,
+                    update_only: false,
+                },
+                IacAttribute {
+                    api_name: "ip_address".to_string(),
+                    canonical_name: "ip_address".to_string(),
+                    description: "Assigned IP".to_string(),
+                    iac_type: IacType::String,
+                    required: false,
+                    computed: true,
+                    sensitive: false,
+                    immutable: false,
+                    default_value: None,
+                    enum_values: None,
+                    read_path: None,
+                    update_only: false,
+                },
+            ],
+            identity: test_identity(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[])
+            .expect("schema generation should succeed");
+
+        let res = &schema.resources["acme:index:Server"];
+        assert!(
+            res.input_properties.contains_key("name"),
+            "computed+required 'name' must appear in input_properties"
+        );
+        assert!(
+            res.required_inputs.contains(&"name".to_string()),
+            "computed+required 'name' must be in required_inputs"
+        );
+        assert!(
+            !res.input_properties.contains_key("ipAddress"),
+            "computed-only (not required) 'ipAddress' must NOT be in input_properties"
+        );
+        assert!(
+            res.properties.contains_key("name"),
+            "computed+required 'name' must also appear in output properties"
+        );
+        assert!(
+            res.properties.contains_key("ipAddress"),
+            "computed-only 'ipAddress' must appear in output properties"
+        );
+        assert!(
+            res.required.contains(&"name".to_string()),
+            "computed+required should be in required outputs"
+        );
+        assert!(
+            res.required.contains(&"ipAddress".to_string()),
+            "computed-only should be in required outputs"
+        );
+    }
+
+    // ---- Coverage gap: enum parse failure fallbacks ----
+
+    #[test]
+    fn enum_integer_unparseable_falls_back_to_string() {
+        let (schema_type, _, _, enum_values) = iac_type_to_pulumi(&IacType::Enum {
+            values: vec!["1".into(), "not_a_number".into(), "3".into()],
+            underlying: Box::new(IacType::Integer),
+        });
+        assert_eq!(schema_type.as_deref(), Some("integer"));
+        let vals = enum_values.unwrap();
+        assert_eq!(vals[0], serde_json::json!(1));
+        assert_eq!(vals[1], serde_json::Value::String("not_a_number".into()));
+        assert_eq!(vals[2], serde_json::json!(3));
+    }
+
+    #[test]
+    fn enum_float_unparseable_falls_back_to_string() {
+        let (schema_type, _, _, enum_values) = iac_type_to_pulumi(&IacType::Enum {
+            values: vec!["1.5".into(), "not_a_float".into()],
+            underlying: Box::new(IacType::Float),
+        });
+        assert_eq!(schema_type.as_deref(), Some("number"));
+        let vals = enum_values.unwrap();
+        assert_eq!(vals[0], serde_json::json!(1.5));
+        assert_eq!(vals[1], serde_json::Value::String("not_a_float".into()));
+    }
+
+    #[test]
+    fn enum_boolean_non_bool_value_falls_back_to_string() {
+        let (schema_type, _, _, enum_values) = iac_type_to_pulumi(&IacType::Enum {
+            values: vec!["true".into(), "false".into(), "maybe".into(), "1".into()],
+            underlying: Box::new(IacType::Boolean),
+        });
+        assert_eq!(schema_type.as_deref(), Some("boolean"));
+        let vals = enum_values.unwrap();
+        assert_eq!(vals[0], serde_json::Value::Bool(true));
+        assert_eq!(vals[1], serde_json::Value::Bool(false));
+        assert_eq!(vals[2], serde_json::Value::String("maybe".into()));
+        assert_eq!(vals[3], serde_json::Value::String("1".into()));
+    }
+
+    #[test]
+    fn enum_with_empty_values_list() {
+        let (schema_type, _, _, enum_values) = iac_type_to_pulumi(&IacType::Enum {
+            values: vec![],
+            underlying: Box::new(IacType::String),
+        });
+        assert_eq!(schema_type.as_deref(), Some("string"));
+        let vals = enum_values.unwrap();
+        assert!(vals.is_empty());
+    }
+
+    // ---- Coverage gap: Backend no-op methods return empty vecs ----
+
+    #[test]
+    fn generate_resource_returns_empty_vec() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let resource = test_resource();
+        let result = backend
+            .generate_resource(&resource, &provider)
+            .expect("generate_resource should succeed");
+        assert!(result.is_empty(), "Pulumi generate_resource should return empty vec");
+    }
+
+    #[test]
+    fn generate_data_source_returns_empty_vec() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let ds = test_data_source();
+        let result = backend
+            .generate_data_source(&ds, &provider)
+            .expect("generate_data_source should succeed");
+        assert!(result.is_empty(), "Pulumi generate_data_source should return empty vec");
+    }
+
+    #[test]
+    fn generate_test_returns_empty_vec() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let resource = test_resource();
+        let result = backend
+            .generate_test(&resource, &provider)
+            .expect("generate_test should succeed");
+        assert!(result.is_empty(), "Pulumi generate_test should return empty vec");
+    }
+
+    // ---- Coverage gap: provider with only token_field (no gateway) ----
+
+    #[test]
+    fn provider_with_only_token_field() {
+        let backend = PulumiBackend::new();
+        let provider = IacProvider {
+            name: "tokenonly".to_string(),
+            description: "Token-only provider".to_string(),
+            version: "1.0.0".to_string(),
+            auth: AuthInfo {
+                token_field: "api_key".to_string(),
+                env_var: "API_KEY".to_string(),
+                gateway_url_field: String::new(),
+                gateway_env_var: String::new(),
+            },
+            skip_fields: vec![],
+            platform_config: HashMap::new(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .expect("schema generation should succeed");
+
+        assert!(
+            schema.provider.input_properties.contains_key("apiKey"),
+            "should have apiKey"
+        );
+        assert!(
+            !schema.provider.input_properties.contains_key(""),
+            "should not have empty-string key"
+        );
+        assert_eq!(
+            schema.provider.input_properties.len(),
+            1,
+            "should have exactly one input property"
+        );
+        let token_prop = &schema.provider.input_properties["apiKey"];
+        assert_eq!(token_prop.secret, Some(true));
+    }
+
+    #[test]
+    fn provider_with_only_gateway_field() {
+        let backend = PulumiBackend::new();
+        let provider = IacProvider {
+            name: "gatewayonly".to_string(),
+            description: "Gateway-only provider".to_string(),
+            version: "1.0.0".to_string(),
+            auth: AuthInfo {
+                token_field: String::new(),
+                env_var: String::new(),
+                gateway_url_field: "base_url".to_string(),
+                gateway_env_var: "BASE_URL".to_string(),
+            },
+            skip_fields: vec![],
+            platform_config: HashMap::new(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .expect("schema generation should succeed");
+
+        assert_eq!(schema.provider.input_properties.len(), 1);
+        assert!(schema.provider.input_properties.contains_key("baseUrl"));
+        let url_prop = &schema.provider.input_properties["baseUrl"];
+        assert_eq!(url_prop.secret, None, "gateway URL should not be secret");
+        assert_eq!(url_prop.description.as_deref(), Some("API gateway URL"));
+    }
+
+    // ---- Coverage gap: JSON output format uses camelCase keys ----
+
+    #[test]
+    fn json_output_uses_camel_case_keys_not_snake_case() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let resource = test_resource();
+        let ds = test_data_source();
+
+        let artifacts = backend
+            .generate_provider(&provider, &[resource], &[ds])
+            .expect("generate_provider should succeed");
+        let json_str = &artifacts[0].content;
+
+        assert!(json_str.contains("\"inputProperties\""), "must use camelCase inputProperties");
+        assert!(json_str.contains("\"requiredInputs\""), "must use camelCase requiredInputs");
+        assert!(json_str.contains("\"displayName\""), "must use camelCase displayName");
+        assert!(json_str.contains("\"replaceOnChanges\""), "must use camelCase replaceOnChanges");
+        assert!(!json_str.contains("\"input_properties\""), "snake_case must not appear");
+        assert!(!json_str.contains("\"required_inputs\""), "snake_case must not appear");
+        assert!(!json_str.contains("\"display_name\""), "snake_case must not appear");
+        assert!(!json_str.contains("\"replace_on_changes\""), "snake_case must not appear");
+    }
+
+    #[test]
+    fn json_output_omits_empty_optional_fields() {
+        let backend = PulumiBackend::new();
+        let provider = IacProvider {
+            name: "minimal".to_string(),
+            description: String::new(),
+            version: "0.0.1".to_string(),
+            auth: AuthInfo {
+                token_field: String::new(),
+                env_var: String::new(),
+                gateway_url_field: String::new(),
+                gateway_env_var: String::new(),
+            },
+            skip_fields: vec![],
+            platform_config: HashMap::new(),
+        };
+
+        let artifacts = backend
+            .generate_provider(&provider, &[], &[])
+            .expect("generate_provider should succeed");
+        let json_val: serde_json::Value = serde_json::from_str(&artifacts[0].content).unwrap();
+        let obj = json_val.as_object().unwrap();
+
+        assert!(!obj.contains_key("homepage"), "None homepage should be omitted");
+        assert!(!obj.contains_key("repository"), "None repository should be omitted");
+        assert!(!obj.contains_key("publisher"), "None publisher should be omitted");
+        assert!(!obj.contains_key("resources"), "empty resources map should be omitted");
+        assert!(!obj.contains_key("functions"), "empty functions map should be omitted");
+        assert!(!obj.contains_key("types"), "empty types map should be omitted");
+    }
+
+    // ---- Coverage gap: deeply nested and compound types ----
+
+    #[test]
+    fn map_of_list_of_integer_type_mapping() {
+        let (schema_type, _, addl_props, _) = iac_type_to_pulumi(
+            &IacType::Map(Box::new(IacType::List(Box::new(IacType::Integer)))),
+        );
+        assert_eq!(schema_type.as_deref(), Some("object"));
+        let addl = addl_props.unwrap();
+        assert_eq!(addl.schema_type.as_deref(), Some("array"));
+        let items = addl.items.unwrap();
+        assert_eq!(items.schema_type.as_deref(), Some("integer"));
+    }
+
+    #[test]
+    fn map_of_map_of_string_type_mapping() {
+        let (schema_type, _, addl_props, _) = iac_type_to_pulumi(
+            &IacType::Map(Box::new(IacType::Map(Box::new(IacType::String)))),
+        );
+        assert_eq!(schema_type.as_deref(), Some("object"));
+        let outer_addl = addl_props.unwrap();
+        assert_eq!(outer_addl.schema_type.as_deref(), Some("object"));
+        let inner_addl = outer_addl.additional_properties.unwrap();
+        assert_eq!(inner_addl.schema_type.as_deref(), Some("string"));
+    }
+
+    #[test]
+    fn list_of_enum_type_mapping() {
+        let (schema_type, items, _, _) = iac_type_to_pulumi(&IacType::List(Box::new(
+            IacType::Enum {
+                values: vec!["a".into(), "b".into()],
+                underlying: Box::new(IacType::String),
+            },
+        )));
+        assert_eq!(schema_type.as_deref(), Some("array"));
+        let inner = items.unwrap();
+        assert_eq!(inner.schema_type.as_deref(), Some("string"));
+        assert!(inner.enum_values.is_some());
+        assert_eq!(inner.enum_values.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn map_of_boolean_type_mapping() {
+        let (schema_type, _, addl_props, _) =
+            iac_type_to_pulumi(&IacType::Map(Box::new(IacType::Boolean)));
+        assert_eq!(schema_type.as_deref(), Some("object"));
+        let addl = addl_props.unwrap();
+        assert_eq!(addl.schema_type.as_deref(), Some("boolean"));
+    }
+
+    #[test]
+    fn set_of_boolean_type_mapping() {
+        let (schema_type, items, _, _) =
+            iac_type_to_pulumi(&IacType::Set(Box::new(IacType::Boolean)));
+        assert_eq!(schema_type.as_deref(), Some("array"));
+        let inner = items.unwrap();
+        assert_eq!(inner.schema_type.as_deref(), Some("boolean"));
+    }
+
+    // ---- Coverage gap: multiple resources produce deterministic ordering ----
+
+    #[test]
+    fn multiple_resources_appear_in_sorted_order() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let resources = vec![
+            IacResource {
+                name: "acme_zebra".to_string(),
+                description: "Zebra resource".to_string(),
+                category: "test".to_string(),
+                crud: test_crud(),
+                attributes: vec![],
+                identity: test_identity(),
+            },
+            IacResource {
+                name: "acme_alpha".to_string(),
+                description: "Alpha resource".to_string(),
+                category: "test".to_string(),
+                crud: test_crud(),
+                attributes: vec![],
+                identity: test_identity(),
+            },
+            IacResource {
+                name: "acme_middle".to_string(),
+                description: "Middle resource".to_string(),
+                category: "test".to_string(),
+                crud: test_crud(),
+                attributes: vec![],
+                identity: test_identity(),
+            },
+        ];
+
+        let schema = backend
+            .generate_schema(&provider, &resources, &[])
+            .expect("schema generation should succeed");
+
+        assert_eq!(schema.resources.len(), 3);
+        let keys: Vec<_> = schema.resources.keys().collect();
+        assert_eq!(keys[0], "acme:index:Alpha");
+        assert_eq!(keys[1], "acme:index:Middle");
+        assert_eq!(keys[2], "acme:index:Zebra");
+    }
+
+    // ---- Coverage gap: multiple data sources ordering ----
+
+    #[test]
+    fn multiple_data_sources_appear_in_sorted_order() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let data_sources = vec![
+            IacDataSource {
+                name: "acme_z_info".to_string(),
+                description: "Z info".to_string(),
+                read_endpoint: "GET /z".to_string(),
+                read_schema: "GetZ".to_string(),
+                read_response_schema: None,
+                attributes: vec![],
+            },
+            IacDataSource {
+                name: "acme_a_info".to_string(),
+                description: "A info".to_string(),
+                read_endpoint: "GET /a".to_string(),
+                read_schema: "GetA".to_string(),
+                read_response_schema: None,
+                attributes: vec![],
+            },
+        ];
+
+        let schema = backend
+            .generate_schema(&provider, &[], &data_sources)
+            .expect("schema generation should succeed");
+
+        let keys: Vec<_> = schema.functions.keys().collect();
+        assert_eq!(keys[0], "acme:index:getAInfo");
+        assert_eq!(keys[1], "acme:index:getZInfo");
+    }
+
+    // ---- Coverage gap: attribute with default values of various types ----
+
+    #[test]
+    fn attribute_with_string_default_value() {
+        let attr = IacAttribute {
+            api_name: "region".to_string(),
+            canonical_name: "region".to_string(),
+            description: "Region".to_string(),
+            iac_type: IacType::String,
+            required: false,
+            computed: false,
+            sensitive: false,
+            immutable: false,
+            default_value: Some(serde_json::json!("us-east-1")),
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = iac_attr_to_property(&attr);
+        assert_eq!(prop.default, Some(serde_json::json!("us-east-1")));
+        assert_eq!(prop.schema_type.as_deref(), Some("string"));
+    }
+
+    #[test]
+    fn attribute_with_integer_default_value() {
+        let attr = IacAttribute {
+            api_name: "port".to_string(),
+            canonical_name: "port".to_string(),
+            description: "Port".to_string(),
+            iac_type: IacType::Integer,
+            required: false,
+            computed: false,
+            sensitive: false,
+            immutable: false,
+            default_value: Some(serde_json::json!(8080)),
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = iac_attr_to_property(&attr);
+        assert_eq!(prop.default, Some(serde_json::json!(8080)));
+    }
+
+    #[test]
+    fn attribute_with_null_default_value() {
+        let attr = IacAttribute {
+            api_name: "opt".to_string(),
+            canonical_name: "opt".to_string(),
+            description: "Optional".to_string(),
+            iac_type: IacType::String,
+            required: false,
+            computed: false,
+            sensitive: false,
+            immutable: false,
+            default_value: Some(serde_json::Value::Null),
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = iac_attr_to_property(&attr);
+        assert_eq!(prop.default, Some(serde_json::Value::Null));
+    }
+
+    // ---- Coverage gap: attribute with empty description ----
+
+    #[test]
+    fn attribute_with_empty_description_maps_to_none() {
+        let attr = IacAttribute {
+            api_name: "field".to_string(),
+            canonical_name: "field".to_string(),
+            description: String::new(),
+            iac_type: IacType::String,
+            required: false,
+            computed: false,
+            sensitive: false,
+            immutable: false,
+            default_value: None,
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = iac_attr_to_property(&attr);
+        assert!(prop.description.is_none(), "empty description should become None");
+    }
+
+    #[test]
+    fn attribute_with_nonempty_description_maps_to_some() {
+        let attr = IacAttribute {
+            api_name: "field".to_string(),
+            canonical_name: "field".to_string(),
+            description: "A field".to_string(),
+            iac_type: IacType::String,
+            required: false,
+            computed: false,
+            sensitive: false,
+            immutable: false,
+            default_value: None,
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = iac_attr_to_property(&attr);
+        assert_eq!(prop.description.as_deref(), Some("A field"));
+    }
+
+    // ---- Coverage gap: iac_type_to_property_spec as standalone helper ----
+
+    #[test]
+    fn iac_type_to_property_spec_returns_clean_property() {
+        let prop = iac_type_to_property_spec(&IacType::String);
+        assert_eq!(prop.schema_type.as_deref(), Some("string"));
+        assert!(prop.description.is_none());
+        assert!(prop.secret.is_none());
+        assert!(prop.default.is_none());
+        assert!(prop.items.is_none());
+        assert!(prop.additional_properties.is_none());
+        assert!(prop.ref_path.is_none());
+        assert!(prop.replace_on_changes.is_none());
+        assert!(prop.enum_values.is_none());
+    }
+
+    #[test]
+    fn iac_type_to_property_spec_preserves_nested_structure() {
+        let prop = iac_type_to_property_spec(&IacType::Map(Box::new(IacType::List(
+            Box::new(IacType::Float),
+        ))));
+        assert_eq!(prop.schema_type.as_deref(), Some("object"));
+        let addl = prop.additional_properties.unwrap();
+        assert_eq!(addl.schema_type.as_deref(), Some("array"));
+        let items = addl.items.unwrap();
+        assert_eq!(items.schema_type.as_deref(), Some("number"));
+    }
+
+    // ---- Coverage gap: data source with empty description ----
+
+    #[test]
+    fn data_source_empty_description_maps_to_none() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let ds = IacDataSource {
+            name: "acme_lookup".to_string(),
+            description: String::new(),
+            read_endpoint: "GET /lookup".to_string(),
+            read_schema: "LookupReq".to_string(),
+            read_response_schema: None,
+            attributes: vec![],
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[ds])
+            .expect("schema generation should succeed");
+
+        let func = &schema.functions["acme:index:getLookup"];
+        assert!(func.description.is_none(), "empty data source description should be None");
+    }
+
+    // ---- Coverage gap: naming convention edge cases ----
+
+    #[test]
+    fn naming_resource_type_strips_provider_prefix() {
+        let naming = PulumiNaming;
+        assert_eq!(naming.resource_type_name("acme_my_resource", "acme"), "MyResource");
+    }
+
+    #[test]
+    fn naming_resource_type_no_prefix_match() {
+        let naming = PulumiNaming;
+        let result = naming.resource_type_name("other_resource", "acme");
+        assert!(!result.is_empty(), "should produce a non-empty name even without prefix match");
+    }
+
+    #[test]
+    fn naming_file_name_ignores_resource_name() {
+        let naming = PulumiNaming;
+        assert_eq!(naming.file_name("anything", &ArtifactKind::Schema), "schema.json");
+        assert_eq!(naming.file_name("", &ArtifactKind::Schema), "schema.json");
+        assert_eq!(naming.file_name("complex_name", &ArtifactKind::Resource), "schema.json");
+    }
+
+    #[test]
+    fn naming_field_name_converts_to_camel_case() {
+        let naming = PulumiNaming;
+        assert_eq!(naming.field_name("my_field_name"), "myFieldName");
+        assert_eq!(naming.field_name("single"), "single");
+        assert_eq!(naming.field_name("UPPER_CASE"), "uPPERCASE");
+    }
+
+    // ---- Coverage gap: provider description stored even when empty ----
+
+    #[test]
+    fn provider_empty_description_stored_as_some_empty_string() {
+        let backend = PulumiBackend::new();
+        let provider = IacProvider {
+            name: "test".to_string(),
+            description: String::new(),
+            version: "0.0.1".to_string(),
+            auth: AuthInfo {
+                token_field: String::new(),
+                env_var: String::new(),
+                gateway_url_field: String::new(),
+                gateway_env_var: String::new(),
+            },
+            skip_fields: vec![],
+            platform_config: HashMap::new(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .expect("schema generation should succeed");
+
+        assert_eq!(
+            schema.description,
+            Some(String::new()),
+            "provider description is stored as Some even when empty"
+        );
+        assert_eq!(
+            schema.provider.description,
+            Some(String::new()),
+            "provider resource description is stored as Some even when empty"
+        );
+    }
+
+    // ---- Coverage gap: data source computed attributes are required outputs, non-computed not ----
+
+    #[test]
+    fn data_source_non_required_non_computed_field_not_in_output_required() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let ds = IacDataSource {
+            name: "acme_info".to_string(),
+            description: "Info".to_string(),
+            read_endpoint: "GET /info".to_string(),
+            read_schema: "GetInfo".to_string(),
+            read_response_schema: None,
+            attributes: vec![
+                IacAttribute {
+                    api_name: "filter".to_string(),
+                    canonical_name: "filter".to_string(),
+                    description: "Filter param".to_string(),
+                    iac_type: IacType::String,
+                    required: false,
+                    computed: false,
+                    sensitive: false,
+                    immutable: false,
+                    default_value: None,
+                    enum_values: None,
+                    read_path: None,
+                    update_only: false,
+                },
+                IacAttribute {
+                    api_name: "result".to_string(),
+                    canonical_name: "result".to_string(),
+                    description: "Result".to_string(),
+                    iac_type: IacType::String,
+                    required: false,
+                    computed: true,
+                    sensitive: false,
+                    immutable: false,
+                    default_value: None,
+                    enum_values: None,
+                    read_path: None,
+                    update_only: false,
+                },
+            ],
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[ds])
+            .expect("schema generation should succeed");
+
+        let func = &schema.functions["acme:index:getInfo"];
+        let outputs = func.outputs.as_ref().unwrap();
+        assert!(
+            outputs.required.contains(&"result".to_string()),
+            "computed field should be in output required"
+        );
+        assert!(
+            !outputs.required.contains(&"filter".to_string()),
+            "non-computed field should NOT be in output required"
+        );
+    }
+
+    // ---- Coverage gap: resource required+non-computed in required outputs ----
+
+    #[test]
+    fn required_non_computed_field_in_required_outputs() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let resource = IacResource {
+            name: "acme_item".to_string(),
+            description: "Item".to_string(),
+            category: "test".to_string(),
+            crud: test_crud(),
+            attributes: vec![
+                IacAttribute {
+                    api_name: "name".to_string(),
+                    canonical_name: "name".to_string(),
+                    description: "Name".to_string(),
+                    iac_type: IacType::String,
+                    required: true,
+                    computed: false,
+                    sensitive: false,
+                    immutable: false,
+                    default_value: None,
+                    enum_values: None,
+                    read_path: None,
+                    update_only: false,
+                },
+                IacAttribute {
+                    api_name: "opt".to_string(),
+                    canonical_name: "opt".to_string(),
+                    description: "Optional".to_string(),
+                    iac_type: IacType::String,
+                    required: false,
+                    computed: false,
+                    sensitive: false,
+                    immutable: false,
+                    default_value: None,
+                    enum_values: None,
+                    read_path: None,
+                    update_only: false,
+                },
+            ],
+            identity: test_identity(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[])
+            .expect("schema generation should succeed");
+
+        let res = &schema.resources["acme:index:Item"];
+        assert!(
+            res.required.contains(&"name".to_string()),
+            "required field should be in required outputs"
+        );
+        assert!(
+            !res.required.contains(&"opt".to_string()),
+            "optional non-computed field should NOT be in required outputs"
+        );
+    }
+
+    // ---- Coverage gap: enum with nested List underlying type ----
+
+    #[test]
+    fn enum_with_list_underlying_preserves_base_type() {
+        let (schema_type, items, _, enum_values) = iac_type_to_pulumi(&IacType::Enum {
+            values: vec!["a".into(), "b".into()],
+            underlying: Box::new(IacType::List(Box::new(IacType::String))),
+        });
+        assert_eq!(schema_type.as_deref(), Some("array"));
+        assert!(items.is_none(), "enum branch does not propagate items from underlying");
+        assert!(enum_values.is_some());
+        let vals = enum_values.unwrap();
+        assert_eq!(vals[0], serde_json::Value::String("a".into()));
+    }
+
+    // ---- Coverage gap: capitalize_first with Unicode ----
+
+    #[test]
+    fn capitalize_first_unicode() {
+        assert_eq!(capitalize_first("über"), "Über");
+        assert_eq!(capitalize_first("日本語"), "日本語");
+    }
+
+    // ---- Coverage gap: sensitive + immutable combined on same attribute ----
+
+    #[test]
+    fn sensitive_and_immutable_both_set() {
+        let attr = IacAttribute {
+            api_name: "api_key".to_string(),
+            canonical_name: "api_key".to_string(),
+            description: "API key".to_string(),
+            iac_type: IacType::String,
+            required: true,
+            computed: false,
+            sensitive: true,
+            immutable: true,
+            default_value: None,
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = iac_attr_to_property(&attr);
+        assert_eq!(prop.secret, Some(true));
+        assert_eq!(prop.replace_on_changes, Some(true));
+    }
+
+    // ---- Coverage gap: non-sensitive, non-immutable attribute has None for those fields ----
+
+    #[test]
+    fn non_sensitive_non_immutable_has_none_flags() {
+        let attr = IacAttribute {
+            api_name: "label".to_string(),
+            canonical_name: "label".to_string(),
+            description: "Label".to_string(),
+            iac_type: IacType::String,
+            required: false,
+            computed: false,
+            sensitive: false,
+            immutable: false,
+            default_value: None,
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = iac_attr_to_property(&attr);
+        assert!(prop.secret.is_none());
+        assert!(prop.replace_on_changes.is_none());
+    }
+
+    // ---- Coverage gap: Object type always produces type=object, no items/additionalProperties ----
+
+    #[test]
+    fn object_type_has_no_items_or_additional_properties() {
+        let (schema_type, items, addl, enum_vals) = iac_type_to_pulumi(&IacType::Object {
+            name: "Nested".to_string(),
+            fields: vec![],
+        });
+        assert_eq!(schema_type.as_deref(), Some("object"));
+        assert!(items.is_none());
+        assert!(addl.is_none());
+        assert!(enum_vals.is_none());
+    }
+
+    // ---- Coverage gap: Any type maps to string ----
+
+    #[test]
+    fn any_type_maps_to_string() {
+        let (schema_type, items, addl, enum_vals) = iac_type_to_pulumi(&IacType::Any);
+        assert_eq!(schema_type.as_deref(), Some("string"));
+        assert!(items.is_none());
+        assert!(addl.is_none());
+        assert!(enum_vals.is_none());
+    }
+
+    // ---- Coverage gap: platform_config with pulumi key but no module subkey defaults to "index" ----
+
+    #[test]
+    fn platform_config_pulumi_without_module_defaults_to_index() {
+        let backend = PulumiBackend::new();
+        let mut provider = test_provider();
+        let mut pulumi_config = HashMap::new();
+        pulumi_config.insert(
+            "pulumi".to_string(),
+            toml::Value::Table({
+                let mut t = toml::map::Map::new();
+                t.insert("other_key".to_string(), toml::Value::String("val".to_string()));
+                t
+            }),
+        );
+        provider.platform_config = pulumi_config;
+
+        let resource = IacResource {
+            name: "acme_thing".to_string(),
+            description: "A thing".to_string(),
+            category: "test".to_string(),
+            crud: test_crud(),
+            attributes: vec![],
+            identity: test_identity(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[])
+            .expect("schema generation should succeed");
+
+        assert!(
+            schema.resources.contains_key("acme:index:Thing"),
+            "should default to 'index' module when pulumi config has no 'module' key"
+        );
+    }
+
+    // ---- Coverage gap: platform_config with non-string module value defaults to "index" ----
+
+    #[test]
+    fn platform_config_pulumi_module_non_string_defaults_to_index() {
+        let backend = PulumiBackend::new();
+        let mut provider = test_provider();
+        let mut pulumi_config = HashMap::new();
+        pulumi_config.insert(
+            "pulumi".to_string(),
+            toml::Value::Table({
+                let mut t = toml::map::Map::new();
+                t.insert("module".to_string(), toml::Value::Integer(42));
+                t
+            }),
+        );
+        provider.platform_config = pulumi_config;
+
+        let resource = IacResource {
+            name: "acme_thing".to_string(),
+            description: "A thing".to_string(),
+            category: "test".to_string(),
+            crud: test_crud(),
+            attributes: vec![],
+            identity: test_identity(),
+        };
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[])
+            .expect("schema generation should succeed");
+
+        assert!(
+            schema.resources.contains_key("acme:index:Thing"),
+            "non-string module value should fallback to 'index'"
+        );
+    }
+
+    // ---- Coverage gap: generate_provider artifact kind is Schema ----
+
+    #[test]
+    fn generate_provider_artifact_kind_is_schema() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let artifacts = backend
+            .generate_provider(&provider, &[], &[])
+            .expect("generate_provider should succeed");
+
+        assert_eq!(artifacts.len(), 1);
+        assert_eq!(artifacts[0].kind, ArtifactKind::Schema);
+        assert_eq!(artifacts[0].path, "schema.json");
+    }
+
+    // ---- Coverage gap: large number of enum values ----
+
+    #[test]
+    fn enum_with_many_values() {
+        let values: Vec<String> = (0..100).map(|i| format!("val_{i}")).collect();
+        let (schema_type, _, _, enum_values) = iac_type_to_pulumi(&IacType::Enum {
+            values,
+            underlying: Box::new(IacType::String),
+        });
+        assert_eq!(schema_type.as_deref(), Some("string"));
+        let vals = enum_values.unwrap();
+        assert_eq!(vals.len(), 100);
+        assert_eq!(vals[0], serde_json::Value::String("val_0".into()));
+        assert_eq!(vals[99], serde_json::Value::String("val_99".into()));
+    }
+
+    // ---- Coverage gap: display_name capitalize_first integration ----
+
+    #[test]
+    fn display_name_is_capitalized_provider_name() {
+        let backend = PulumiBackend::new();
+        let mut provider = test_provider();
+        provider.name = "mycloud".to_string();
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .expect("schema generation should succeed");
+
+        assert_eq!(schema.display_name.as_deref(), Some("Mycloud"));
+    }
+
+    // ---- Coverage gap: language section uses provider name in package paths ----
+
+    #[test]
+    fn language_section_uses_correct_provider_name() {
+        let backend = PulumiBackend::new();
+        let mut provider = test_provider();
+        provider.name = "foobar".to_string();
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .expect("schema generation should succeed");
+
+        assert_eq!(schema.language["nodejs"]["packageName"], "@pulumi/foobar");
+        assert_eq!(schema.language["python"]["packageName"], "pulumi_foobar");
+        assert!(schema.language["go"]["importBasePath"]
+            .as_str()
+            .unwrap()
+            .contains("pulumi-foobar"));
+        assert!(schema.language["java"]["basePackage"]
+            .as_str()
+            .unwrap()
+            .contains("foobar"));
+    }
 }
