@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +29,19 @@ pub struct PulumiSchema {
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub types: BTreeMap<String, ComplexType>,
     pub language: serde_json::Value,
+}
+
+impl fmt::Display for PulumiSchema {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} v{} ({} resources, {} functions)",
+            self.name,
+            self.version,
+            self.resources.len(),
+            self.functions.len(),
+        )
+    }
 }
 
 /// Provider resource in the schema.
@@ -151,6 +165,58 @@ impl PropertySpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pulumi_schema_display_includes_counts() {
+        let schema = PulumiSchema {
+            name: "mypkg".into(),
+            display_name: None,
+            version: "2.0.0".into(),
+            description: None,
+            homepage: None,
+            repository: None,
+            publisher: None,
+            config: BTreeMap::new(),
+            provider: ProviderResource::default(),
+            resources: BTreeMap::new(),
+            functions: BTreeMap::new(),
+            types: BTreeMap::new(),
+            language: serde_json::json!({}),
+        };
+        assert_eq!(schema.to_string(), "mypkg v2.0.0 (0 resources, 0 functions)");
+    }
+
+    #[test]
+    fn property_spec_default_is_all_none() {
+        let prop = PropertySpec::default();
+        assert!(prop.schema_type.is_none());
+        assert!(prop.description.is_none());
+        assert!(prop.secret.is_none());
+        assert!(prop.default.is_none());
+        assert!(prop.items.is_none());
+        assert!(prop.additional_properties.is_none());
+        assert!(prop.ref_path.is_none());
+        assert!(prop.replace_on_changes.is_none());
+        assert!(prop.enum_values.is_none());
+    }
+
+    #[test]
+    fn resource_schema_default_is_empty() {
+        let res = ResourceSchema::default();
+        assert!(res.description.is_none());
+        assert!(res.input_properties.is_empty());
+        assert!(res.required_inputs.is_empty());
+        assert!(res.properties.is_empty());
+        assert!(res.required.is_empty());
+    }
+
+    #[test]
+    fn provider_resource_default_is_empty() {
+        let prov = ProviderResource::default();
+        assert!(prov.description.is_none());
+        assert!(prov.input_properties.is_empty());
+        assert!(prov.required_inputs.is_empty());
+    }
 
     #[test]
     fn property_spec_ref_path_serializes_as_dollar_ref() {
