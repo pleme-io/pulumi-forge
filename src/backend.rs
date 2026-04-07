@@ -141,15 +141,18 @@ impl PulumiBackend {
     fn provider_input_properties(provider: &IacProvider) -> BTreeMap<String, PropertySpec> {
         let mut props = BTreeMap::new();
         if !provider.auth.gateway_url_field.is_empty() {
-            let mut prop = PropertySpec::typed("string");
-            prop.description = Some("API gateway URL".to_string());
-            props.insert(to_camel_case(&provider.auth.gateway_url_field), prop);
+            props.insert(
+                to_camel_case(&provider.auth.gateway_url_field),
+                PropertySpec::typed("string").with_description("API gateway URL"),
+            );
         }
         if !provider.auth.token_field.is_empty() {
-            let mut prop = PropertySpec::typed("string");
-            prop.description = Some("Access token".to_string());
-            prop.secret = Some(true);
-            props.insert(to_camel_case(&provider.auth.token_field), prop);
+            props.insert(
+                to_camel_case(&provider.auth.token_field),
+                PropertySpec::typed("string")
+                    .with_description("Access token")
+                    .with_secret(),
+            );
         }
         props
     }

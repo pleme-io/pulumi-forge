@@ -153,6 +153,20 @@ impl PropertySpec {
             ..Self::default()
         }
     }
+
+    /// Set the description on this property (builder-style).
+    #[must_use]
+    pub fn with_description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    /// Mark this property as secret (builder-style).
+    #[must_use]
+    pub fn with_secret(mut self) -> Self {
+        self.secret = Some(true);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -177,6 +191,29 @@ mod tests {
             language: serde_json::json!({}),
         };
         assert_eq!(schema.to_string(), "mypkg v2.0.0 (0 resources, 0 functions)");
+    }
+
+    #[test]
+    fn property_spec_with_description_sets_description() {
+        let prop = PropertySpec::typed("string").with_description("A field");
+        assert_eq!(prop.description.as_deref(), Some("A field"));
+        assert_eq!(prop.schema_type.as_deref(), Some("string"));
+    }
+
+    #[test]
+    fn property_spec_with_secret_sets_secret() {
+        let prop = PropertySpec::typed("string").with_secret();
+        assert_eq!(prop.secret, Some(true));
+    }
+
+    #[test]
+    fn property_spec_builder_chain() {
+        let prop = PropertySpec::typed("string")
+            .with_description("Secret key")
+            .with_secret();
+        assert_eq!(prop.schema_type.as_deref(), Some("string"));
+        assert_eq!(prop.description.as_deref(), Some("Secret key"));
+        assert_eq!(prop.secret, Some(true));
     }
 
     #[test]
