@@ -2827,4 +2827,133 @@ mod tests {
         assert_eq!(variables["apiToken"]["type"], "string");
         assert_eq!(variables["apiToken"]["secret"], true);
     }
+
+    // ---- Tests for non_empty and some_if helpers ----
+
+    #[test]
+    fn non_empty_returns_none_for_empty_string() {
+        assert!(non_empty("").is_none());
+    }
+
+    #[test]
+    fn non_empty_returns_some_for_nonempty_string() {
+        assert_eq!(non_empty("hello"), Some("hello".to_string()));
+    }
+
+    #[test]
+    fn some_if_true_returns_some_true() {
+        assert_eq!(some_if(true), Some(true));
+    }
+
+    #[test]
+    fn some_if_false_returns_none() {
+        assert_eq!(some_if(false), None);
+    }
+
+    // ---- Tests for From<&IacAttribute> ----
+
+    #[test]
+    fn from_iac_attribute_maps_sensitive_to_secret() {
+        let attr = IacAttribute {
+            api_name: "key".into(),
+            canonical_name: "key".into(),
+            description: String::new(),
+            iac_type: IacType::String,
+            required: false,
+            computed: false,
+            sensitive: true,
+            immutable: false,
+            default_value: None,
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = PropertySpec::from(&attr);
+        assert_eq!(prop.secret, Some(true));
+        assert!(prop.description.is_none());
+    }
+
+    #[test]
+    fn from_iac_attribute_maps_immutable_to_replace_on_changes() {
+        let attr = IacAttribute {
+            api_name: "name".into(),
+            canonical_name: "name".into(),
+            description: "The name".into(),
+            iac_type: IacType::String,
+            required: true,
+            computed: false,
+            sensitive: false,
+            immutable: true,
+            default_value: None,
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = PropertySpec::from(&attr);
+        assert_eq!(prop.replace_on_changes, Some(true));
+        assert_eq!(prop.description.as_deref(), Some("The name"));
+    }
+
+    #[test]
+    fn from_iac_attribute_preserves_default_value() {
+        let attr = IacAttribute {
+            api_name: "count".into(),
+            canonical_name: "count".into(),
+            description: String::new(),
+            iac_type: IacType::Integer,
+            required: false,
+            computed: false,
+            sensitive: false,
+            immutable: false,
+            default_value: Some(serde_json::json!(42)),
+            enum_values: None,
+            read_path: None,
+            update_only: false,
+        };
+        let prop = PropertySpec::from(&attr);
+        assert_eq!(prop.default, Some(serde_json::json!(42)));
+        assert_eq!(prop.schema_type.as_deref(), Some("integer"));
+    }
+
+    // ---- Tests for From<&IacType> ----
+
+    #[test]
+    fn from_iac_type_boolean() {
+        let prop = PropertySpec::from(&IacType::Boolean);
+        assert_eq!(prop.schema_type.as_deref(), Some("boolean"));
+        assert!(prop.items.is_none());
+    }
+
+    #[test]
+    fn from_iac_type_set_produces_array() {
+        let prop = PropertySpec::from(&IacType::Set(Box::new(IacType::Integer)));
+        assert_eq!(prop.schema_type.as_deref(), Some("array"));
+        assert!(prop.items.is_some());
+    }
+
+    #[test]
+    fn from_iac_type_any_produces_string() {
+        let prop = PropertySpec::from(&IacType::Any);
+        assert_eq!(prop.schema_type.as_deref(), Some("string"));
+    }
+
+    // ---- Test Display for PulumiSchema via generate_schema ----
+
+    #[test]
+    fn schema_display_matches_generated_counts() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let resource = test_resource();
+        let ds = test_data_source();
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[ds])
+            .expect("schema generation should succeed");
+
+        let display = schema.to_string();
+        assert!(display.contains("acme"), "should contain provider name");
+        assert!(display.contains("1.0.0"), "should contain version");
+        assert!(display.contains("1 resources"), "should show 1 resource");
+        assert!(display.contains("1 functions"), "should show 1 function");
+    }
 }
