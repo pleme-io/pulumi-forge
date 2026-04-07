@@ -1088,7 +1088,8 @@ mod tests {
         assert!(schema.language["java"]["basePackage"].as_str().unwrap().contains("acme"));
     }
 
-    /// Build a resource with ALL IacType variants to verify exhaustive type mapping.
+    /// Build a resource with all `IacType` variants to verify exhaustive type mapping.
+    #[allow(clippy::too_many_lines)]
     fn resource_with_all_types() -> IacResource {
         IacResource {
             name: "acme_kitchen_sink".to_string(),
@@ -2700,8 +2701,8 @@ mod tests {
 
     #[test]
     fn coerce_enum_value_float_valid() {
-        let val = coerce_enum_value("3.14", &IacType::Float);
-        assert_eq!(val, serde_json::json!(3.14));
+        let val = coerce_enum_value("2.72", &IacType::Float);
+        assert_eq!(val, serde_json::json!(2.72));
     }
 
     #[test]
@@ -2773,7 +2774,7 @@ mod tests {
 
         let json1 = {
             let artifacts = backend
-                .generate_provider(&provider, &[resource.clone()], &[ds.clone()])
+                .generate_provider(&provider, std::slice::from_ref(&resource), std::slice::from_ref(&ds))
                 .unwrap();
             artifacts[0].content.clone()
         };

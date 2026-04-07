@@ -327,7 +327,7 @@ mod tests {
         };
         let json = serde_json::to_value(&res).unwrap();
         let obj = json.as_object().unwrap();
-        assert!(obj.is_empty(), "empty ResourceSchema should serialize to empty object, got: {:?}", obj);
+        assert!(obj.is_empty(), "empty ResourceSchema should serialize to empty object, got: {obj:?}");
     }
 
     #[test]
