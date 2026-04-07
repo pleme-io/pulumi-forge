@@ -54,29 +54,25 @@ impl PulumiBackend {
             .and_then(|v| v.as_str())
             .unwrap_or("index");
 
-        let mut schema_resources = BTreeMap::new();
-        for res in resources {
-            let short = strip_provider_prefix(&res.name, &provider.name);
-            let type_token = format!(
-                "{}:{}:{}",
-                provider.name,
-                module,
-                to_pascal_case(short)
-            );
-            schema_resources.insert(type_token, Self::resource_to_schema(res));
-        }
+        let schema_resources: BTreeMap<_, _> = resources
+            .iter()
+            .map(|res| {
+                let short = strip_provider_prefix(&res.name, &provider.name);
+                let token =
+                    format!("{}:{}:{}", provider.name, module, to_pascal_case(short));
+                (token, Self::resource_to_schema(res))
+            })
+            .collect();
 
-        let mut functions = BTreeMap::new();
-        for ds in data_sources {
-            let short = strip_provider_prefix(&ds.name, &provider.name);
-            let type_token = format!(
-                "{}:{}:get{}",
-                provider.name,
-                module,
-                to_pascal_case(short)
-            );
-            functions.insert(type_token, Self::data_source_to_function(ds));
-        }
+        let functions: BTreeMap<_, _> = data_sources
+            .iter()
+            .map(|ds| {
+                let short = strip_provider_prefix(&ds.name, &provider.name);
+                let token =
+                    format!("{}:{}:get{}", provider.name, module, to_pascal_case(short));
+                (token, Self::data_source_to_function(ds))
+            })
+            .collect();
 
         let provider_props = Self::provider_input_properties(provider);
 
