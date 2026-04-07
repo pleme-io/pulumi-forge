@@ -130,6 +130,24 @@ pub struct PropertySpec {
     pub enum_values: Option<Vec<serde_json::Value>>,
 }
 
+impl PropertySpec {
+    /// Create a simple property with only a type and all other fields `None`.
+    #[must_use]
+    pub fn typed(schema_type: &str) -> Self {
+        Self {
+            schema_type: Some(schema_type.to_owned()),
+            description: None,
+            secret: None,
+            default: None,
+            items: None,
+            additional_properties: None,
+            ref_path: None,
+            replace_on_changes: None,
+            enum_values: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
