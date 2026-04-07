@@ -9,6 +9,16 @@ use crate::schema::{
     FunctionSchema, ObjectTypeSpec, PropertySpec, ProviderResource, PulumiSchema, ResourceSchema,
 };
 
+/// Decomposed components of a Pulumi property type mapping.
+///
+/// Fields: (schema_type, items, additional_properties, enum_values)
+type TypeComponents = (
+    Option<String>,
+    Option<Box<PropertySpec>>,
+    Option<Box<PropertySpec>>,
+    Option<Vec<serde_json::Value>>,
+);
+
 /// Pulumi backend that generates `schema.json` from the `IaC` forge IR.
 pub struct PulumiBackend {
     naming: PulumiNaming,
@@ -355,17 +365,9 @@ fn iac_type_to_property_spec(iac_type: &IacType) -> PropertySpec {
     }
 }
 
-/// Map `IacType` to Pulumi schema type components.
-fn iac_type_to_pulumi(
-    iac_type: &IacType,
-) -> (
-    Option<String>,
-    Option<Box<PropertySpec>>,
-    Option<Box<PropertySpec>>,
-    Option<Vec<serde_json::Value>>,
-) {
+/// Map an `IacType` to its Pulumi schema type components.
+fn iac_type_to_pulumi(iac_type: &IacType) -> TypeComponents {
     match iac_type {
-        IacType::String => (Some("string".into()), None, None, None),
         IacType::Integer => (Some("integer".into()), None, None, None),
         IacType::Float => (Some("number".into()), None, None, None),
         IacType::Boolean => (Some("boolean".into()), None, None, None),
@@ -389,26 +391,30 @@ fn iac_type_to_pulumi(
             let (base_type, _, _, _) = iac_type_to_pulumi(underlying);
             let vals: Vec<serde_json::Value> = values
                 .iter()
-                .map(|v| match underlying.as_ref() {
-                    IacType::Integer => v.parse::<i64>().map_or_else(
-                        |_| serde_json::Value::String(v.clone()),
-                        |n| serde_json::json!(n),
-                    ),
-                    IacType::Float => v.parse::<f64>().map_or_else(
-                        |_| serde_json::Value::String(v.clone()),
-                        |n| serde_json::json!(n),
-                    ),
-                    IacType::Boolean => match v.as_str() {
-                        "true" => serde_json::Value::Bool(true),
-                        "false" => serde_json::Value::Bool(false),
-                        _ => serde_json::Value::String(v.clone()),
-                    },
-                    _ => serde_json::Value::String(v.clone()),
-                })
+                .map(|v| coerce_enum_value(v, underlying))
                 .collect();
             (base_type, None, None, Some(vals))
         }
-        IacType::Any => (Some("string".into()), None, None, None),
+        IacType::String | IacType::Any => (Some("string".into()), None, None, None),
+    }
+}
+
+/// Coerce a string enum value to the appropriate JSON type based on the
+/// underlying `IacType`. Falls back to a JSON string when parsing fails.
+fn coerce_enum_value(v: &str, underlying: &IacType) -> serde_json::Value {
+    match underlying {
+        IacType::Integer => v
+            .parse::<i64>()
+            .map_or_else(|_| serde_json::Value::String(v.to_owned()), |n| serde_json::json!(n)),
+        IacType::Float => v
+            .parse::<f64>()
+            .map_or_else(|_| serde_json::Value::String(v.to_owned()), |n| serde_json::json!(n)),
+        IacType::Boolean => match v {
+            "true" => serde_json::Value::Bool(true),
+            "false" => serde_json::Value::Bool(false),
+            _ => serde_json::Value::String(v.to_owned()),
+        },
+        _ => serde_json::Value::String(v.to_owned()),
     }
 }
 
@@ -417,6 +423,7 @@ fn to_pascal_case_custom(name: &str) -> String {
     iac_forge::to_pascal_case(name)
 }
 
+/// Capitalize the first character of a string.
 fn capitalize_first(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {
