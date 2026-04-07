@@ -102,39 +102,44 @@ impl PulumiBackend {
             resources: schema_resources,
             functions,
             types: BTreeMap::new(),
-            language: serde_json::json!({
-                "nodejs": {
-                    "packageName": format!("@pulumi/{}", provider.name),
-                    "packageDescription": format!("A Pulumi package for managing {} resources.", capitalize_first(&provider.name)),
-                    "respectSchemaVersion": true
-                },
-                "python": {
-                    "packageName": format!("pulumi_{}", provider.name),
-                    "respectSchemaVersion": true,
-                    "pyproject": { "enabled": true },
-                    "inputTypes": "classes-and-dicts"
-                },
-                "go": {
-                    "importBasePath": format!("github.com/pleme-io/pulumi-{}/sdk/go/{}", provider.name, provider.name),
-                    "generateResourceContainerTypes": true,
-                    "respectSchemaVersion": true
-                },
-                "csharp": {
-                    "packageReferences": { "Pulumi": "3.*" },
-                    "rootNamespace": "Pulumi",
-                    "respectSchemaVersion": true
-                },
-                "java": {
-                    "basePackage": format!("com.pulumi.{}", provider.name),
-                    "buildFiles": "gradle",
-                    "gradleNexusPublishPluginVersion": "2.0.0",
-                    "dependencies": {
-                        "com.google.code.findbugs:jsr305": "3.0.2",
-                        "com.google.code.gson:gson": "2.8.9",
-                        "com.pulumi:pulumi": "1.0.0"
-                    }
+            language: Self::language_config(&provider.name),
+        })
+    }
+
+    fn language_config(provider_name: &str) -> serde_json::Value {
+        let display = capitalize_first(provider_name);
+        serde_json::json!({
+            "nodejs": {
+                "packageName": format!("@pulumi/{provider_name}"),
+                "packageDescription": format!("A Pulumi package for managing {display} resources."),
+                "respectSchemaVersion": true
+            },
+            "python": {
+                "packageName": format!("pulumi_{provider_name}"),
+                "respectSchemaVersion": true,
+                "pyproject": { "enabled": true },
+                "inputTypes": "classes-and-dicts"
+            },
+            "go": {
+                "importBasePath": format!("github.com/pleme-io/pulumi-{provider_name}/sdk/go/{provider_name}"),
+                "generateResourceContainerTypes": true,
+                "respectSchemaVersion": true
+            },
+            "csharp": {
+                "packageReferences": { "Pulumi": "3.*" },
+                "rootNamespace": "Pulumi",
+                "respectSchemaVersion": true
+            },
+            "java": {
+                "basePackage": format!("com.pulumi.{provider_name}"),
+                "buildFiles": "gradle",
+                "gradleNexusPublishPluginVersion": "2.0.0",
+                "dependencies": {
+                    "com.google.code.findbugs:jsr305": "3.0.2",
+                    "com.google.code.gson:gson": "2.8.9",
+                    "com.pulumi:pulumi": "1.0.0"
                 }
-            }),
+            }
         })
     }
 
