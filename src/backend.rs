@@ -305,12 +305,12 @@ impl From<&IacAttribute> for PropertySpec {
         Self {
             schema_type,
             description: non_empty(&attr.description),
-            secret: if attr.sensitive { Some(true) } else { None },
+            secret: some_if(attr.sensitive),
             default: attr.default_value.clone(),
             items,
             additional_properties,
             ref_path: None,
-            replace_on_changes: if attr.immutable { Some(true) } else { None },
+            replace_on_changes: some_if(attr.immutable),
             enum_values,
         }
     }
@@ -386,6 +386,11 @@ fn coerce_enum_value(v: &str, underlying: &IacType) -> serde_json::Value {
 /// Convert a potentially-empty string into `Some(owned)` or `None`.
 fn non_empty(s: &str) -> Option<String> {
     if s.is_empty() { None } else { Some(s.to_owned()) }
+}
+
+/// Map `true` to `Some(true)` and `false` to `None`.
+const fn some_if(flag: bool) -> Option<bool> {
+    if flag { Some(true) } else { None }
 }
 
 /// Capitalize the first character of a string.
