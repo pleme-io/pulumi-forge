@@ -276,8 +276,7 @@ impl Backend for PulumiBackend {
         data_sources: &[IacDataSource],
     ) -> Result<Vec<GeneratedArtifact>, IacForgeError> {
         let schema = self.generate_schema(provider, resources, data_sources)?;
-        let json = serde_json::to_string_pretty(&schema)
-            .map_err(|e| IacForgeError::BackendError(e.to_string()))?;
+        let json = serde_json::to_string_pretty(&schema)?;
         Ok(vec![GeneratedArtifact {
             path: "schema.json".to_string(),
             content: json,
