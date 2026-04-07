@@ -81,7 +81,7 @@ impl PulumiBackend {
         if !provider_props.is_empty() {
             config.insert(
                 "variables".to_string(),
-                serde_json::to_value(&provider_props).unwrap_or_else(|_| serde_json::json!({})),
+                serde_json::to_value(&provider_props)?,
             );
         }
 
