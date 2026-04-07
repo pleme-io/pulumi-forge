@@ -60,7 +60,7 @@ impl PulumiBackend {
                 let short = strip_provider_prefix(&res.name, &provider.name);
                 let token =
                     format!("{}:{}:{}", provider.name, module, to_pascal_case(short));
-                (token, Self::resource_to_schema(res))
+                (token, ResourceSchema::from(res))
             })
             .collect();
 
@@ -70,7 +70,7 @@ impl PulumiBackend {
                 let short = strip_provider_prefix(&ds.name, &provider.name);
                 let token =
                     format!("{}:{}:get{}", provider.name, module, to_pascal_case(short));
-                (token, Self::data_source_to_function(ds))
+                (token, FunctionSchema::from(ds))
             })
             .collect();
 
@@ -154,73 +154,6 @@ impl PulumiBackend {
         props
     }
 
-    fn resource_to_schema(resource: &IacResource) -> ResourceSchema {
-        let mut input_properties = BTreeMap::new();
-        let mut properties = BTreeMap::new();
-        let mut required_inputs = Vec::new();
-        let mut required_outputs = Vec::new();
-
-        for attr in &resource.attributes {
-            let name = to_camel_case(&attr.canonical_name);
-            let prop = PropertySpec::from(attr);
-
-            if !attr.computed || attr.required {
-                input_properties.insert(name.clone(), prop.clone());
-                if attr.required {
-                    required_inputs.push(name.clone());
-                }
-            }
-
-            properties.insert(name.clone(), prop);
-            if attr.required || attr.computed {
-                required_outputs.push(name);
-            }
-        }
-
-        ResourceSchema {
-            description: non_empty(&resource.description),
-            input_properties,
-            required_inputs,
-            properties,
-            required: required_outputs,
-        }
-    }
-
-    fn data_source_to_function(ds: &IacDataSource) -> FunctionSchema {
-        let mut input_props = BTreeMap::new();
-        let mut output_props = BTreeMap::new();
-        let mut input_required = Vec::new();
-        let mut output_required = Vec::new();
-
-        for attr in &ds.attributes {
-            let name = to_camel_case(&attr.canonical_name);
-            let prop = PropertySpec::from(attr);
-
-            if !attr.computed {
-                input_props.insert(name.clone(), prop.clone());
-                if attr.required {
-                    input_required.push(name.clone());
-                }
-            }
-
-            output_props.insert(name.clone(), prop);
-            if attr.computed {
-                output_required.push(name);
-            }
-        }
-
-        FunctionSchema {
-            description: non_empty(&ds.description),
-            inputs: Some(ObjectTypeSpec {
-                properties: input_props,
-                required: input_required,
-            }),
-            outputs: Some(ObjectTypeSpec {
-                properties: output_props,
-                required: output_required,
-            }),
-        }
-    }
 }
 
 impl Default for PulumiBackend {
@@ -326,6 +259,78 @@ impl From<&IacType> for PropertySpec {
             additional_properties,
             enum_values,
             ..Self::default()
+        }
+    }
+}
+
+impl From<&IacResource> for ResourceSchema {
+    fn from(resource: &IacResource) -> Self {
+        let mut input_properties = BTreeMap::new();
+        let mut properties = BTreeMap::new();
+        let mut required_inputs = Vec::new();
+        let mut required_outputs = Vec::new();
+
+        for attr in &resource.attributes {
+            let name = to_camel_case(&attr.canonical_name);
+            let prop = PropertySpec::from(attr);
+
+            if !attr.computed || attr.required {
+                input_properties.insert(name.clone(), prop.clone());
+                if attr.required {
+                    required_inputs.push(name.clone());
+                }
+            }
+
+            properties.insert(name.clone(), prop);
+            if attr.required || attr.computed {
+                required_outputs.push(name);
+            }
+        }
+
+        Self {
+            description: non_empty(&resource.description),
+            input_properties,
+            required_inputs,
+            properties,
+            required: required_outputs,
+        }
+    }
+}
+
+impl From<&IacDataSource> for FunctionSchema {
+    fn from(ds: &IacDataSource) -> Self {
+        let mut input_props = BTreeMap::new();
+        let mut output_props = BTreeMap::new();
+        let mut input_required = Vec::new();
+        let mut output_required = Vec::new();
+
+        for attr in &ds.attributes {
+            let name = to_camel_case(&attr.canonical_name);
+            let prop = PropertySpec::from(attr);
+
+            if !attr.computed {
+                input_props.insert(name.clone(), prop.clone());
+                if attr.required {
+                    input_required.push(name.clone());
+                }
+            }
+
+            output_props.insert(name.clone(), prop);
+            if attr.computed {
+                output_required.push(name);
+            }
+        }
+
+        Self {
+            description: non_empty(&ds.description),
+            inputs: Some(ObjectTypeSpec {
+                properties: input_props,
+                required: input_required,
+            }),
+            outputs: Some(ObjectTypeSpec {
+                properties: output_props,
+                required: output_required,
+            }),
         }
     }
 }
