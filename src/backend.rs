@@ -384,6 +384,7 @@ fn coerce_enum_value(v: &str, underlying: &IacType) -> serde_json::Value {
 }
 
 /// Convert a potentially-empty string into `Some(owned)` or `None`.
+#[must_use]
 fn non_empty(s: &str) -> Option<String> {
     if s.is_empty() { None } else { Some(s.to_owned()) }
 }
@@ -394,6 +395,7 @@ const fn some_if(flag: bool) -> Option<bool> {
 }
 
 /// Capitalize the first character of a string.
+#[must_use]
 fn capitalize_first(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {
