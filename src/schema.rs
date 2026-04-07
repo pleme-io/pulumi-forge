@@ -427,4 +427,197 @@ mod tests {
         let roundtripped: PropertySpec = serde_json::from_str(&json_str).unwrap();
         assert_eq!(roundtripped.default, Some(serde_json::json!("hello")));
     }
+
+    #[test]
+    fn property_spec_typed_creates_minimal_property() {
+        let prop = PropertySpec::typed("integer");
+        assert_eq!(prop.schema_type.as_deref(), Some("integer"));
+        assert!(prop.description.is_none());
+        assert!(prop.secret.is_none());
+        assert!(prop.default.is_none());
+        assert!(prop.items.is_none());
+        assert!(prop.additional_properties.is_none());
+        assert!(prop.ref_path.is_none());
+        assert!(prop.replace_on_changes.is_none());
+        assert!(prop.enum_values.is_none());
+    }
+
+    #[test]
+    fn property_spec_typed_serializes_correctly() {
+        let prop = PropertySpec::typed("boolean");
+        let json = serde_json::to_value(&prop).unwrap();
+        let obj = json.as_object().unwrap();
+        assert_eq!(obj.len(), 1);
+        assert_eq!(obj["type"], "boolean");
+    }
+
+    #[test]
+    fn complex_type_object_with_properties_roundtrip() {
+        let mut properties = BTreeMap::new();
+        properties.insert(
+            "name".to_string(),
+            PropertySpec::typed("string"),
+        );
+        properties.insert(
+            "count".to_string(),
+            PropertySpec::typed("integer"),
+        );
+        let ct = ComplexType {
+            description: Some("An object type".into()),
+            properties,
+            required: vec!["name".to_string()],
+            schema_type: Some("object".into()),
+            enum_values: None,
+        };
+        let json_str = serde_json::to_string(&ct).unwrap();
+        let roundtripped: ComplexType = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(roundtripped.properties.len(), 2);
+        assert!(roundtripped.properties.contains_key("name"));
+        assert!(roundtripped.properties.contains_key("count"));
+        assert_eq!(roundtripped.required, vec!["name"]);
+        assert!(roundtripped.enum_values.is_none());
+    }
+
+    #[test]
+    fn complex_type_empty_roundtrip() {
+        let ct = ComplexType {
+            description: None,
+            properties: BTreeMap::new(),
+            required: vec![],
+            schema_type: None,
+            enum_values: None,
+        };
+        let json = serde_json::to_value(&ct).unwrap();
+        let obj = json.as_object().unwrap();
+        assert!(obj.is_empty(), "fully empty ComplexType should serialize to empty object");
+    }
+
+    #[test]
+    fn enum_value_roundtrip() {
+        let ev = EnumValue {
+            value: serde_json::json!(42),
+            name: Some("FortyTwo".into()),
+            description: Some("The answer".into()),
+        };
+        let json_str = serde_json::to_string(&ev).unwrap();
+        let roundtripped: EnumValue = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(roundtripped.value, serde_json::json!(42));
+        assert_eq!(roundtripped.name.as_deref(), Some("FortyTwo"));
+        assert_eq!(roundtripped.description.as_deref(), Some("The answer"));
+    }
+
+    #[test]
+    fn enum_value_minimal_roundtrip() {
+        let ev = EnumValue {
+            value: serde_json::Value::String("x".into()),
+            name: None,
+            description: None,
+        };
+        let json = serde_json::to_value(&ev).unwrap();
+        let obj = json.as_object().unwrap();
+        assert_eq!(obj.len(), 1, "minimal EnumValue should only have 'value' key");
+        assert_eq!(obj["value"], "x");
+    }
+
+    #[test]
+    fn object_type_spec_roundtrip_with_required() {
+        let mut props = BTreeMap::new();
+        props.insert("id".to_string(), PropertySpec::typed("string"));
+        props.insert("age".to_string(), PropertySpec::typed("integer"));
+        let spec = ObjectTypeSpec {
+            properties: props,
+            required: vec!["id".to_string()],
+        };
+        let json_str = serde_json::to_string(&spec).unwrap();
+        let roundtripped: ObjectTypeSpec = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(roundtripped.properties.len(), 2);
+        assert_eq!(roundtripped.required, vec!["id"]);
+    }
+
+    #[test]
+    fn property_spec_secret_field_roundtrip() {
+        let mut prop = PropertySpec::typed("string");
+        prop.secret = Some(true);
+        let json_str = serde_json::to_string(&prop).unwrap();
+        let roundtripped: PropertySpec = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(roundtripped.secret, Some(true));
+    }
+
+    #[test]
+    fn property_spec_replace_on_changes_roundtrip() {
+        let mut prop = PropertySpec::typed("string");
+        prop.replace_on_changes = Some(true);
+        let json_str = serde_json::to_string(&prop).unwrap();
+        assert!(json_str.contains("replaceOnChanges"));
+        let roundtripped: PropertySpec = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(roundtripped.replace_on_changes, Some(true));
+    }
+
+    #[test]
+    fn pulumi_schema_full_roundtrip() {
+        let mut resources = BTreeMap::new();
+        let mut input_props = BTreeMap::new();
+        input_props.insert("name".to_string(), PropertySpec::typed("string"));
+        resources.insert(
+            "pkg:index:MyRes".to_string(),
+            ResourceSchema {
+                description: Some("My resource".into()),
+                input_properties: input_props.clone(),
+                required_inputs: vec!["name".to_string()],
+                properties: input_props,
+                required: vec!["name".to_string()],
+            },
+        );
+
+        let mut functions = BTreeMap::new();
+        functions.insert(
+            "pkg:index:getMyData".to_string(),
+            FunctionSchema {
+                description: Some("Get data".into()),
+                inputs: Some(ObjectTypeSpec {
+                    properties: BTreeMap::new(),
+                    required: vec![],
+                }),
+                outputs: Some(ObjectTypeSpec {
+                    properties: {
+                        let mut m = BTreeMap::new();
+                        m.insert("result".to_string(), PropertySpec::typed("string"));
+                        m
+                    },
+                    required: vec!["result".to_string()],
+                }),
+            },
+        );
+
+        let schema = PulumiSchema {
+            name: "mypkg".into(),
+            display_name: Some("MyPkg".into()),
+            version: "1.2.3".into(),
+            description: Some("A test package".into()),
+            homepage: Some("https://example.com".into()),
+            repository: Some("https://github.com/test/repo".into()),
+            publisher: Some("TestCo".into()),
+            config: BTreeMap::new(),
+            provider: ProviderResource {
+                description: Some("The provider".into()),
+                input_properties: BTreeMap::new(),
+                required_inputs: vec![],
+            },
+            resources,
+            functions,
+            types: BTreeMap::new(),
+            language: serde_json::json!({"nodejs": {}}),
+        };
+
+        let json_str = serde_json::to_string_pretty(&schema).unwrap();
+        let roundtripped: PulumiSchema = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(roundtripped.name, "mypkg");
+        assert_eq!(roundtripped.version, "1.2.3");
+        assert_eq!(roundtripped.display_name.as_deref(), Some("MyPkg"));
+        assert_eq!(roundtripped.homepage.as_deref(), Some("https://example.com"));
+        assert_eq!(roundtripped.repository.as_deref(), Some("https://github.com/test/repo"));
+        assert_eq!(roundtripped.publisher.as_deref(), Some("TestCo"));
+        assert_eq!(roundtripped.resources.len(), 1);
+        assert_eq!(roundtripped.functions.len(), 1);
+    }
 }
