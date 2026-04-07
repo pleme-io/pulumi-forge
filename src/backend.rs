@@ -177,7 +177,7 @@ impl PulumiBackend {
             let name = to_camel_case(&attr.canonical_name);
             let prop = iac_attr_to_property(attr);
 
-            if !attr.computed || (attr.computed && attr.required) {
+            if !attr.computed || attr.required {
                 input_properties.insert(name.clone(), prop.clone());
                 if attr.required {
                     required_inputs.push(name.clone());
