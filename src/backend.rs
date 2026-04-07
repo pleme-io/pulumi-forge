@@ -2679,4 +2679,162 @@ mod tests {
             .unwrap()
             .contains("foobar"));
     }
+
+    // ---- coerce_enum_value helper tests ----
+
+    #[test]
+    fn coerce_enum_value_integer_valid() {
+        let val = coerce_enum_value("42", &IacType::Integer);
+        assert_eq!(val, serde_json::json!(42));
+    }
+
+    #[test]
+    fn coerce_enum_value_integer_negative() {
+        let val = coerce_enum_value("-7", &IacType::Integer);
+        assert_eq!(val, serde_json::json!(-7));
+    }
+
+    #[test]
+    fn coerce_enum_value_integer_invalid() {
+        let val = coerce_enum_value("abc", &IacType::Integer);
+        assert_eq!(val, serde_json::Value::String("abc".into()));
+    }
+
+    #[test]
+    fn coerce_enum_value_float_valid() {
+        let val = coerce_enum_value("3.14", &IacType::Float);
+        assert_eq!(val, serde_json::json!(3.14));
+    }
+
+    #[test]
+    fn coerce_enum_value_float_invalid() {
+        let val = coerce_enum_value("nope", &IacType::Float);
+        assert_eq!(val, serde_json::Value::String("nope".into()));
+    }
+
+    #[test]
+    fn coerce_enum_value_boolean_true() {
+        let val = coerce_enum_value("true", &IacType::Boolean);
+        assert_eq!(val, serde_json::Value::Bool(true));
+    }
+
+    #[test]
+    fn coerce_enum_value_boolean_false() {
+        let val = coerce_enum_value("false", &IacType::Boolean);
+        assert_eq!(val, serde_json::Value::Bool(false));
+    }
+
+    #[test]
+    fn coerce_enum_value_boolean_invalid() {
+        let val = coerce_enum_value("yes", &IacType::Boolean);
+        assert_eq!(val, serde_json::Value::String("yes".into()));
+    }
+
+    #[test]
+    fn coerce_enum_value_string_passthrough() {
+        let val = coerce_enum_value("hello", &IacType::String);
+        assert_eq!(val, serde_json::Value::String("hello".into()));
+    }
+
+    #[test]
+    fn coerce_enum_value_other_type_passthrough() {
+        let val = coerce_enum_value("val", &IacType::Any);
+        assert_eq!(val, serde_json::Value::String("val".into()));
+    }
+
+    // ---- to_pascal_case_custom tests ----
+
+    #[test]
+    fn to_pascal_case_custom_basic() {
+        assert_eq!(to_pascal_case_custom("hello_world"), "HelloWorld");
+    }
+
+    #[test]
+    fn to_pascal_case_custom_hyphens() {
+        assert_eq!(to_pascal_case_custom("my-resource"), "MyResource");
+    }
+
+    #[test]
+    fn to_pascal_case_custom_single_word() {
+        assert_eq!(to_pascal_case_custom("item"), "Item");
+    }
+
+    #[test]
+    fn to_pascal_case_custom_empty() {
+        assert_eq!(to_pascal_case_custom(""), "");
+    }
+
+    // ---- Full schema JSON determinism test ----
+
+    #[test]
+    fn schema_json_is_deterministic_across_runs() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let resource = test_resource();
+        let ds = test_data_source();
+
+        let json1 = {
+            let artifacts = backend
+                .generate_provider(&provider, &[resource.clone()], &[ds.clone()])
+                .unwrap();
+            artifacts[0].content.clone()
+        };
+        let json2 = {
+            let artifacts = backend
+                .generate_provider(&provider, &[resource], &[ds])
+                .unwrap();
+            artifacts[0].content.clone()
+        };
+
+        assert_eq!(json1, json2, "schema.json output must be deterministic");
+    }
+
+    // ---- Data source function description preserved ----
+
+    #[test]
+    fn data_source_description_preserved_in_function() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let ds = test_data_source();
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[ds])
+            .unwrap();
+
+        let func = &schema.functions["acme:index:getSecretValue"];
+        assert_eq!(func.description.as_deref(), Some("Read a secret value"));
+    }
+
+    // ---- Resource description preserved ----
+
+    #[test]
+    fn resource_description_preserved() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+        let resource = test_resource();
+
+        let schema = backend
+            .generate_schema(&provider, &[resource], &[])
+            .unwrap();
+
+        let res = &schema.resources["acme:index:StaticSecret"];
+        assert_eq!(res.description.as_deref(), Some("A static secret resource"));
+    }
+
+    // ---- Config variables have correct property types ----
+
+    #[test]
+    fn config_variables_have_correct_schema_type() {
+        let backend = PulumiBackend::new();
+        let provider = test_provider();
+
+        let schema = backend
+            .generate_schema(&provider, &[], &[])
+            .unwrap();
+
+        let variables = &schema.config["variables"];
+        assert_eq!(variables["apiUrl"]["type"], "string");
+        assert_eq!(variables["apiToken"]["type"], "string");
+        assert_eq!(variables["apiToken"]["secret"], true);
+    }
 }
