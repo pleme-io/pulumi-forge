@@ -11,7 +11,7 @@ use crate::schema::{
 
 /// Decomposed components of a Pulumi property type mapping.
 ///
-/// Fields: (schema_type, items, additional_properties, enum_values)
+/// Fields: (`schema_type`, `items`, `additional_properties`, `enum_values`)
 type TypeComponents = (
     Option<String>,
     Option<Box<PropertySpec>>,
@@ -276,6 +276,8 @@ impl NamingConvention for PulumiNaming {
 }
 
 impl Backend for PulumiBackend {
+    // TODO(iac-forge): Backend trait should return &'static str from platform()
+    #[allow(clippy::unnecessary_literal_bound)]
     fn platform(&self) -> &str {
         "pulumi"
     }
