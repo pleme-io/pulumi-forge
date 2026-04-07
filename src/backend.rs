@@ -2946,6 +2946,38 @@ mod tests {
         assert_eq!(prop.schema_type.as_deref(), Some("string"));
     }
 
+    // ---- Tests for From<&IacResource> and From<&IacDataSource> ----
+
+    #[test]
+    fn from_iac_resource_sets_description() {
+        let resource = test_resource();
+        let schema = ResourceSchema::from(&resource);
+        assert_eq!(schema.description.as_deref(), Some("A static secret resource"));
+    }
+
+    #[test]
+    fn from_iac_resource_empty_description_is_none() {
+        let mut resource = test_resource();
+        resource.description = String::new();
+        let schema = ResourceSchema::from(&resource);
+        assert!(schema.description.is_none());
+    }
+
+    #[test]
+    fn from_iac_data_source_sets_description() {
+        let ds = test_data_source();
+        let schema = FunctionSchema::from(&ds);
+        assert_eq!(schema.description.as_deref(), Some("Read a secret value"));
+    }
+
+    #[test]
+    fn from_iac_data_source_has_inputs_and_outputs() {
+        let ds = test_data_source();
+        let schema = FunctionSchema::from(&ds);
+        assert!(schema.inputs.is_some());
+        assert!(schema.outputs.is_some());
+    }
+
     // ---- Test Display for PulumiSchema via generate_schema ----
 
     #[test]
