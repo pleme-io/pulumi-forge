@@ -39,7 +39,7 @@ impl PulumiBackend {
     ///
     /// # Errors
     ///
-    /// Returns an error if schema generation fails.
+    /// Returns [`IacForgeError::BackendError`] if schema generation fails.
     pub fn generate_schema(
         &self,
         provider: &IacProvider,
@@ -165,7 +165,7 @@ impl PulumiBackend {
 
         for attr in &resource.attributes {
             let name = to_camel_case(&attr.canonical_name);
-            let prop = iac_attr_to_property(attr);
+            let prop = PropertySpec::from(attr);
 
             if !attr.computed || attr.required {
                 input_properties.insert(name.clone(), prop.clone());
@@ -201,7 +201,7 @@ impl PulumiBackend {
 
         for attr in &ds.attributes {
             let name = to_camel_case(&attr.canonical_name);
-            let prop = iac_attr_to_property(attr);
+            let prop = PropertySpec::from(attr);
 
             if !attr.computed {
                 input_props.insert(name.clone(), prop.clone());
@@ -309,41 +309,40 @@ impl Backend for PulumiBackend {
     }
 }
 
-/// Convert an `IacAttribute` to a Pulumi `PropertySpec`.
-fn iac_attr_to_property(attr: &IacAttribute) -> PropertySpec {
-    let (schema_type, items, additional_properties, enum_values) =
-        iac_type_to_pulumi(&attr.iac_type);
+impl From<&IacAttribute> for PropertySpec {
+    fn from(attr: &IacAttribute) -> Self {
+        let (schema_type, items, additional_properties, enum_values) =
+            iac_type_to_pulumi(&attr.iac_type);
 
-    PropertySpec {
-        schema_type,
-        description: if attr.description.is_empty() {
-            None
-        } else {
-            Some(attr.description.clone())
-        },
-        secret: if attr.sensitive { Some(true) } else { None },
-        default: attr.default_value.clone(),
-        items,
-        additional_properties,
-        ref_path: None,
-        replace_on_changes: if attr.immutable { Some(true) } else { None },
-        enum_values,
+        Self {
+            schema_type,
+            description: if attr.description.is_empty() {
+                None
+            } else {
+                Some(attr.description.clone())
+            },
+            secret: if attr.sensitive { Some(true) } else { None },
+            default: attr.default_value.clone(),
+            items,
+            additional_properties,
+            ref_path: None,
+            replace_on_changes: if attr.immutable { Some(true) } else { None },
+            enum_values,
+        }
     }
 }
 
-/// Build a complete `PropertySpec` from an `IacType`, preserving nested structure.
-fn iac_type_to_property_spec(iac_type: &IacType) -> PropertySpec {
-    let (schema_type, items, additional_properties, enum_values) = iac_type_to_pulumi(iac_type);
-    PropertySpec {
-        schema_type,
-        description: None,
-        secret: None,
-        default: None,
-        items,
-        additional_properties,
-        ref_path: None,
-        replace_on_changes: None,
-        enum_values,
+impl From<&IacType> for PropertySpec {
+    fn from(iac_type: &IacType) -> Self {
+        let (schema_type, items, additional_properties, enum_values) =
+            iac_type_to_pulumi(iac_type);
+        Self {
+            schema_type,
+            items,
+            additional_properties,
+            enum_values,
+            ..Self::default()
+        }
     }
 }
 
@@ -354,11 +353,11 @@ fn iac_type_to_pulumi(iac_type: &IacType) -> TypeComponents {
         IacType::Float => (Some("number".into()), None, None, None),
         IacType::Boolean => (Some("boolean".into()), None, None, None),
         IacType::List(inner) | IacType::Set(inner) => {
-            let inner_prop = iac_type_to_property_spec(inner);
+            let inner_prop = PropertySpec::from(inner.as_ref());
             (Some("array".into()), Some(Box::new(inner_prop)), None, None)
         }
         IacType::Map(inner) => {
-            let inner_prop = iac_type_to_property_spec(inner);
+            let inner_prop = PropertySpec::from(inner.as_ref());
             (
                 Some("object".into()),
                 None,
@@ -2117,7 +2116,7 @@ mod tests {
             read_path: None,
             update_only: false,
         };
-        let prop = iac_attr_to_property(&attr);
+        let prop = PropertySpec::from(&attr);
         assert_eq!(prop.default, Some(serde_json::json!("us-east-1")));
         assert_eq!(prop.schema_type.as_deref(), Some("string"));
     }
@@ -2138,7 +2137,7 @@ mod tests {
             read_path: None,
             update_only: false,
         };
-        let prop = iac_attr_to_property(&attr);
+        let prop = PropertySpec::from(&attr);
         assert_eq!(prop.default, Some(serde_json::json!(8080)));
     }
 
@@ -2158,7 +2157,7 @@ mod tests {
             read_path: None,
             update_only: false,
         };
-        let prop = iac_attr_to_property(&attr);
+        let prop = PropertySpec::from(&attr);
         assert_eq!(prop.default, Some(serde_json::Value::Null));
     }
 
@@ -2180,7 +2179,7 @@ mod tests {
             read_path: None,
             update_only: false,
         };
-        let prop = iac_attr_to_property(&attr);
+        let prop = PropertySpec::from(&attr);
         assert!(prop.description.is_none(), "empty description should become None");
     }
 
@@ -2200,15 +2199,15 @@ mod tests {
             read_path: None,
             update_only: false,
         };
-        let prop = iac_attr_to_property(&attr);
+        let prop = PropertySpec::from(&attr);
         assert_eq!(prop.description.as_deref(), Some("A field"));
     }
 
-    // ---- Coverage gap: iac_type_to_property_spec as standalone helper ----
+    // ---- Coverage gap: PropertySpec::from(&IacType) as standalone conversion ----
 
     #[test]
-    fn iac_type_to_property_spec_returns_clean_property() {
-        let prop = iac_type_to_property_spec(&IacType::String);
+    fn property_spec_from_iac_type_returns_clean_property() {
+        let prop = PropertySpec::from(&IacType::String);
         assert_eq!(prop.schema_type.as_deref(), Some("string"));
         assert!(prop.description.is_none());
         assert!(prop.secret.is_none());
@@ -2221,8 +2220,8 @@ mod tests {
     }
 
     #[test]
-    fn iac_type_to_property_spec_preserves_nested_structure() {
-        let prop = iac_type_to_property_spec(&IacType::Map(Box::new(IacType::List(
+    fn property_spec_from_iac_type_preserves_nested_structure() {
+        let prop = PropertySpec::from(&IacType::Map(Box::new(IacType::List(
             Box::new(IacType::Float),
         ))));
         assert_eq!(prop.schema_type.as_deref(), Some("object"));
@@ -2484,7 +2483,7 @@ mod tests {
             read_path: None,
             update_only: false,
         };
-        let prop = iac_attr_to_property(&attr);
+        let prop = PropertySpec::from(&attr);
         assert_eq!(prop.secret, Some(true));
         assert_eq!(prop.replace_on_changes, Some(true));
     }
@@ -2507,7 +2506,7 @@ mod tests {
             read_path: None,
             update_only: false,
         };
-        let prop = iac_attr_to_property(&attr);
+        let prop = PropertySpec::from(&attr);
         assert!(prop.secret.is_none());
         assert!(prop.replace_on_changes.is_none());
     }
