@@ -27,6 +27,7 @@ pub struct PulumiBackend {
 struct PulumiNaming;
 
 impl PulumiBackend {
+    /// Create a new Pulumi backend instance.
     #[must_use]
     pub fn new() -> Self {
         Self {
