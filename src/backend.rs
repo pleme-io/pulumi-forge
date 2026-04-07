@@ -9,7 +9,7 @@ use crate::schema::{
     FunctionSchema, ObjectTypeSpec, PropertySpec, ProviderResource, PulumiSchema, ResourceSchema,
 };
 
-/// Pulumi backend that generates `schema.json` from the IaC forge IR.
+/// Pulumi backend that generates `schema.json` from the `IaC` forge IR.
 pub struct PulumiBackend {
     naming: PulumiNaming,
 }
