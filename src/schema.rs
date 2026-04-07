@@ -150,14 +150,7 @@ impl PropertySpec {
     pub fn typed(schema_type: &str) -> Self {
         Self {
             schema_type: Some(schema_type.to_owned()),
-            description: None,
-            secret: None,
-            default: None,
-            items: None,
-            additional_properties: None,
-            ref_path: None,
-            replace_on_changes: None,
-            enum_values: None,
+            ..Self::default()
         }
     }
 }
