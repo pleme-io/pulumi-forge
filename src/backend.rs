@@ -4,6 +4,7 @@ use iac_forge::IacForgeError;
 use iac_forge::backend::{ArtifactKind, Backend, GeneratedArtifact, NamingConvention};
 use iac_forge::ir::{IacAttribute, IacDataSource, IacProvider, IacResource, IacType};
 use iac_forge::naming::{strip_provider_prefix, to_camel_case};
+use iac_forge::to_pascal_case;
 
 use crate::schema::{
     FunctionSchema, ObjectTypeSpec, PropertySpec, ProviderResource, PulumiSchema, ResourceSchema,
@@ -60,7 +61,7 @@ impl PulumiBackend {
                 "{}:{}:{}",
                 provider.name,
                 module,
-                to_pascal_case_custom(short)
+                to_pascal_case(short)
             );
             schema_resources.insert(type_token, Self::resource_to_schema(res));
         }
@@ -72,7 +73,7 @@ impl PulumiBackend {
                 "{}:{}:get{}",
                 provider.name,
                 module,
-                to_pascal_case_custom(short)
+                to_pascal_case(short)
             );
             functions.insert(type_token, Self::data_source_to_function(ds));
         }
@@ -181,11 +182,7 @@ impl PulumiBackend {
         }
 
         ResourceSchema {
-            description: if resource.description.is_empty() {
-                None
-            } else {
-                Some(resource.description.clone())
-            },
+            description: non_empty(&resource.description),
             input_properties,
             required_inputs,
             properties,
@@ -217,11 +214,7 @@ impl PulumiBackend {
         }
 
         FunctionSchema {
-            description: if ds.description.is_empty() {
-                None
-            } else {
-                Some(ds.description.clone())
-            },
+            description: non_empty(&ds.description),
             inputs: Some(ObjectTypeSpec {
                 properties: input_props,
                 required: input_required,
@@ -243,7 +236,7 @@ impl Default for PulumiBackend {
 impl NamingConvention for PulumiNaming {
     fn resource_type_name(&self, resource_name: &str, provider_name: &str) -> String {
         let short = strip_provider_prefix(resource_name, provider_name);
-        to_pascal_case_custom(short)
+        to_pascal_case(short)
     }
 
     fn file_name(&self, _resource_name: &str, _kind: &ArtifactKind) -> String {
@@ -316,11 +309,7 @@ impl From<&IacAttribute> for PropertySpec {
 
         Self {
             schema_type,
-            description: if attr.description.is_empty() {
-                None
-            } else {
-                Some(attr.description.clone())
-            },
+            description: non_empty(&attr.description),
             secret: if attr.sensitive { Some(true) } else { None },
             default: attr.default_value.clone(),
             items,
@@ -399,9 +388,9 @@ fn coerce_enum_value(v: &str, underlying: &IacType) -> serde_json::Value {
     }
 }
 
-/// Simple `PascalCase` converter (hyphens and underscores are separators).
-fn to_pascal_case_custom(name: &str) -> String {
-    iac_forge::to_pascal_case(name)
+/// Convert a potentially-empty string into `Some(owned)` or `None`.
+fn non_empty(s: &str) -> Option<String> {
+    if s.is_empty() { None } else { Some(s.to_owned()) }
 }
 
 /// Capitalize the first character of a string.
@@ -2741,26 +2730,26 @@ mod tests {
         assert_eq!(val, serde_json::Value::String("val".into()));
     }
 
-    // ---- to_pascal_case_custom tests ----
+    // ---- to_pascal_case tests ----
 
     #[test]
     fn to_pascal_case_custom_basic() {
-        assert_eq!(to_pascal_case_custom("hello_world"), "HelloWorld");
+        assert_eq!(to_pascal_case("hello_world"), "HelloWorld");
     }
 
     #[test]
     fn to_pascal_case_custom_hyphens() {
-        assert_eq!(to_pascal_case_custom("my-resource"), "MyResource");
+        assert_eq!(to_pascal_case("my-resource"), "MyResource");
     }
 
     #[test]
     fn to_pascal_case_custom_single_word() {
-        assert_eq!(to_pascal_case_custom("item"), "Item");
+        assert_eq!(to_pascal_case("item"), "Item");
     }
 
     #[test]
     fn to_pascal_case_custom_empty() {
-        assert_eq!(to_pascal_case_custom(""), "");
+        assert_eq!(to_pascal_case(""), "");
     }
 
     // ---- Full schema JSON determinism test ----
