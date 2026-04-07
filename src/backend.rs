@@ -61,7 +61,7 @@ impl PulumiBackend {
                 module,
                 to_pascal_case_custom(short)
             );
-            schema_resources.insert(type_token, self.resource_to_schema(res));
+            schema_resources.insert(type_token, Self::resource_to_schema(res));
         }
 
         let mut functions = BTreeMap::new();
@@ -73,10 +73,10 @@ impl PulumiBackend {
                 module,
                 to_pascal_case_custom(short)
             );
-            functions.insert(type_token, self.data_source_to_function(ds));
+            functions.insert(type_token, Self::data_source_to_function(ds));
         }
 
-        let provider_props = self.provider_input_properties(provider);
+        let provider_props = Self::provider_input_properties(provider);
 
         // Build config section from provider auth fields
         let mut config = BTreeMap::new();
@@ -140,7 +140,7 @@ impl PulumiBackend {
         })
     }
 
-    fn provider_input_properties(&self, provider: &IacProvider) -> BTreeMap<String, PropertySpec> {
+    fn provider_input_properties(provider: &IacProvider) -> BTreeMap<String, PropertySpec> {
         let mut props = BTreeMap::new();
         if !provider.auth.gateway_url_field.is_empty() {
             props.insert(
@@ -177,7 +177,7 @@ impl PulumiBackend {
         props
     }
 
-    fn resource_to_schema(&self, resource: &IacResource) -> ResourceSchema {
+    fn resource_to_schema(resource: &IacResource) -> ResourceSchema {
         let mut input_properties = BTreeMap::new();
         let mut properties = BTreeMap::new();
         let mut required_inputs = Vec::new();
@@ -213,7 +213,7 @@ impl PulumiBackend {
         }
     }
 
-    fn data_source_to_function(&self, ds: &IacDataSource) -> FunctionSchema {
+    fn data_source_to_function(ds: &IacDataSource) -> FunctionSchema {
         let mut input_props = BTreeMap::new();
         let mut output_props = BTreeMap::new();
         let mut input_required = Vec::new();
