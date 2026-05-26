@@ -361,7 +361,7 @@ rec {
         workspace_member = null;
         src = pkgs.fetchgit {
           url = "https://github.com/pleme-io/iac-forge";
-          rev = "7f71aa7555292fe74d95ba11a3d4da446fdef11c";
+          rev = "ce9f7f89dcd70a8d81cd184052b02d6804fd4ef5";
           sha256 = "1x8d4c68i6p013rhqbcbir1mg29q38fln4qp5d3ga7a5ahx02p26";
         };
         libName = "iac_forge";
@@ -579,7 +579,7 @@ rec {
         workspace_member = null;
         src = pkgs.fetchgit {
           url = "https://github.com/pleme-io/openapi-forge";
-          rev = "e9bd7d2313580b9dd5357dd22cde9fc5111cd124";
+          rev = "2d1b6a349f765c11df6e7ef2127966dfa721a7d3";
           sha256 = "15h1nylbr18v33s1d58zq9r5n8a7iwx2vpybc9fbv1dw5d6qi3cn";
         };
         libName = "openapi_forge";
@@ -599,8 +599,8 @@ rec {
             packageId = "serde_json";
           }
           {
-            name = "serde_yaml";
-            packageId = "serde_yaml";
+            name = "serde_yaml_ng";
+            packageId = "serde_yaml_ng";
           }
           {
             name = "thiserror";
@@ -671,7 +671,7 @@ rec {
       };
       "pulumi-forge" = rec {
         crateName = "pulumi-forge";
-        version = "0.1.0";
+        version = "0.1.1";
         edition = "2024";
         src = lib.cleanSourceWith { filter = sourceFilter;  src = ./.; };
         libName = "pulumi_forge";
@@ -694,6 +694,10 @@ rec {
           {
             name = "tempfile";
             packageId = "tempfile";
+          }
+          {
+            name = "toml";
+            packageId = "toml";
           }
         ];
 
@@ -1030,13 +1034,13 @@ rec {
         };
         resolvedDefaultFeatures = [ "serde" ];
       };
-      "serde_yaml" = rec {
-        crateName = "serde_yaml";
-        version = "0.9.34+deprecated";
+      "serde_yaml_ng" = rec {
+        crateName = "serde_yaml_ng";
+        version = "0.10.0";
         edition = "2021";
-        sha256 = "0isba1fjyg3l6rxk156k600ilzr8fp7crv82rhal0rxz5qd1m2va";
+        sha256 = "07ylpzx9xykdj4fqfa0vb6xz4c1pazrqqibv78hd8dlbp4kvckbv";
         authors = [
-          "David Tolnay <dtolnay@gmail.com>"
+          "Antoine Catton <devel@antoine.catton.fr>"
         ];
         dependencies = [
           {
