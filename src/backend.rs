@@ -218,11 +218,11 @@ impl Backend for PulumiBackend {
     ) -> Result<Vec<GeneratedArtifact>, IacForgeError> {
         let schema = self.generate_schema(provider, resources, data_sources)?;
         let json = serde_json::to_string_pretty(&schema)?;
-        Ok(vec![GeneratedArtifact {
-            path: "schema.json".to_string(),
-            content: json,
-            kind: ArtifactKind::Schema,
-        }])
+        Ok(vec![GeneratedArtifact::new(
+            "schema.json",
+            json,
+            ArtifactKind::Schema,
+        )])
     }
 
     fn generate_test(
@@ -347,7 +347,7 @@ impl From<&IacDataSource> for FunctionSchema {
 fn iac_type_to_pulumi(iac_type: &IacType) -> TypeComponents {
     match iac_type {
         IacType::Integer => (Some("integer".into()), None, None, None),
-        IacType::Float => (Some("number".into()), None, None, None),
+        IacType::Float | IacType::Numeric => (Some("number".into()), None, None, None),
         IacType::Boolean => (Some("boolean".into()), None, None, None),
         IacType::List(inner) | IacType::Set(inner) => {
             let inner_prop = PropertySpec::from(inner.as_ref());
@@ -374,6 +374,9 @@ fn iac_type_to_pulumi(iac_type: &IacType) -> TypeComponents {
             (base_type, None, None, Some(vals))
         }
         IacType::String | IacType::Any => (Some("string".into()), None, None, None),
+        // IacType is #[non_exhaustive]: fall back to a permissive string
+        // schema for any future variant this crate hasn't been taught yet.
+        _ => (Some("string".into()), None, None, None),
     }
 }
 
@@ -384,7 +387,7 @@ fn coerce_enum_value(v: &str, underlying: &IacType) -> serde_json::Value {
         IacType::Integer => v
             .parse::<i64>()
             .map_or_else(|_| serde_json::Value::String(v.to_owned()), |n| serde_json::json!(n)),
-        IacType::Float => v
+        IacType::Float | IacType::Numeric => v
             .parse::<f64>()
             .map_or_else(|_| serde_json::Value::String(v.to_owned()), |n| serde_json::json!(n)),
         IacType::Boolean => match v {
