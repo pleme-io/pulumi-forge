@@ -9,7 +9,7 @@ repository = "https://github.com/pleme-io/pulumi-forge"
 documentation = "https://docs.rs/pulumi-forge"
 readme = "README.md"
 license = "MIT"
-categories = ["development-tools", "code-generators"]
+categories = ["development-tools"]
 keywords = ["pulumi", "codegen", "iac", "provider"]
 
 [lints.clippy]
