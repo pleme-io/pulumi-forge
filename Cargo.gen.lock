@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "cargo_lock_sha256": "9bdcad09b9776b2c43a98fdd623ee52c8d7b5bd780520246fa7ca740a8dea99a",
+  "cargo_lock_sha256": "4cc76f4a29871c931bc394242b712b3973c3e6db078821eeba56feb18901cfc6",
   "manifest_sha256": {
-    "Cargo.toml": "ec4a6b6277010f6123fdd770db77a252d7e2009c7ca42d954c39a5f2cf35010a"
+    "Cargo.toml": "3b86e947c69a132b8175b5a8c51904aa9a6c70bc8957e29f84c118ff97bc27fb"
   },
   "target_resolves": {
     "base": {
@@ -219,11 +219,11 @@
         "build_dependencies": [],
         "features": []
       },
-      "iac-forge-0.1.4-7da37f17d109c109ca85d8e4bba222fbb1876806": {
+      "iac-forge-0.1.5": {
         "runtime_dependencies": [
           {
             "name": "blake3",
-            "package_key": "blake3-1.8.5",
+            "package_key": "blake3-1.8.6",
             "kind": "normal",
             "features": [],
             "uses_default_features": true,
@@ -536,7 +536,7 @@
         "runtime_dependencies": [
           {
             "name": "iac_forge",
-            "package_key": "iac-forge-0.1.4-7da37f17d109c109ca85d8e4bba222fbb1876806",
+            "package_key": "iac-forge-0.1.5",
             "kind": "normal",
             "features": [],
             "uses_default_features": true,
@@ -1198,7 +1198,7 @@
     "targets": {
       "aarch64-apple-darwin": {
         "overrides": {
-          "blake3-1.8.5": {
+          "blake3-1.8.6": {
             "runtime_dependencies": [
               {
                 "name": "arrayref",
@@ -1333,7 +1333,7 @@
       },
       "aarch64-unknown-linux-gnu": {
         "overrides": {
-          "blake3-1.8.5": {
+          "blake3-1.8.6": {
             "runtime_dependencies": [
               {
                 "name": "arrayref",
@@ -1511,7 +1511,7 @@
       },
       "aarch64-unknown-linux-musl": {
         "overrides": {
-          "blake3-1.8.5": {
+          "blake3-1.8.6": {
             "runtime_dependencies": [
               {
                 "name": "arrayref",
@@ -1689,7 +1689,7 @@
       },
       "x86_64-apple-darwin": {
         "overrides": {
-          "blake3-1.8.5": {
+          "blake3-1.8.6": {
             "runtime_dependencies": [
               {
                 "name": "arrayref",
@@ -1839,7 +1839,7 @@
       },
       "x86_64-unknown-linux-gnu": {
         "overrides": {
-          "blake3-1.8.5": {
+          "blake3-1.8.6": {
             "runtime_dependencies": [
               {
                 "name": "arrayref",
@@ -2032,7 +2032,7 @@
       },
       "x86_64-unknown-linux-musl": {
         "overrides": {
-          "blake3-1.8.5": {
+          "blake3-1.8.6": {
             "runtime_dependencies": [
               {
                 "name": "arrayref",
@@ -2235,7 +2235,7 @@
     "bitflags-2.13.1": {
       "edition": "2021"
     },
-    "blake3-1.8.5": {
+    "blake3-1.8.6": {
       "edition": "2024",
       "build_script": "build.rs"
     },
@@ -2270,7 +2270,7 @@
     "hashbrown-0.17.1": {
       "edition": "2024"
     },
-    "iac-forge-0.1.4-7da37f17d109c109ca85d8e4bba222fbb1876806": {
+    "iac-forge-0.1.5": {
       "edition": "2024"
     },
     "indexmap-2.14.0": {
@@ -2401,8 +2401,6 @@
       "build_script": "build.rs"
     }
   },
-  "git_nar_sha256": {
-    "iac-forge-0.1.4-7da37f17d109c109ca85d8e4bba222fbb1876806": "sha256-NDP/mOViPVqT1tRIIZXb12iYL2y8lOAxEjcvYQYgszE="
-  },
+  "git_nar_sha256": {},
   "flake_metadata": {}
 }

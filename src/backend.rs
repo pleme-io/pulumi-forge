@@ -425,7 +425,7 @@ fn capitalize_first(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use iac_forge::ir::{AuthInfo, CrudInfo, IdentityInfo};
 
@@ -443,7 +443,7 @@ mod tests {
                 gateway_env_var: "ACME_URL".to_string(),
             },
             skip_fields: vec![],
-            platform_config: HashMap::new(),
+            platform_config: BTreeMap::new(),
         }
     }
 
@@ -489,6 +489,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "value".to_string(),
@@ -503,6 +504,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "tags".to_string(),
@@ -517,6 +519,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "metadata".to_string(),
@@ -531,6 +534,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "enabled".to_string(),
@@ -545,6 +549,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "id".to_string(),
@@ -559,9 +564,11 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
             identity: test_identity(),
+            read_mapping: Default::default(),
         }
     }
 
@@ -586,6 +593,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "value".to_string(),
@@ -600,8 +608,10 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
+            read_mapping: Default::default(),
         }
     }
 
@@ -877,8 +887,10 @@ mod tests {
                 enum_values: None,
                 read_path: None,
                 update_only: false,
+                ..Default::default()
             }],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -917,8 +929,10 @@ mod tests {
                 enum_values: None,
                 read_path: None,
                 update_only: false,
+                ..Default::default()
             }],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -968,8 +982,10 @@ mod tests {
                 enum_values: None,
                 read_path: None,
                 update_only: false,
+                ..Default::default()
             }],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -1013,7 +1029,9 @@ mod tests {
                 enum_values: None,
                 read_path: None,
                 update_only: false,
+                ..Default::default()
             }],
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -1118,6 +1136,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "int_field".to_string(),
@@ -1132,6 +1151,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "float_field".to_string(),
@@ -1146,6 +1166,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "bool_field".to_string(),
@@ -1160,6 +1181,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "list_field".to_string(),
@@ -1174,6 +1196,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "set_field".to_string(),
@@ -1188,6 +1211,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "map_field".to_string(),
@@ -1202,6 +1226,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "object_field".to_string(),
@@ -1219,6 +1244,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "enum_field".to_string(),
@@ -1236,6 +1262,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "any_field".to_string(),
@@ -1250,9 +1277,11 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
             identity: test_identity(),
+            read_mapping: Default::default(),
         }
     }
 
@@ -1295,6 +1324,7 @@ mod tests {
             crud: test_crud(),
             attributes: vec![],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -1333,6 +1363,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "created_at".to_string(),
@@ -1347,9 +1378,11 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -1395,6 +1428,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "permissions".to_string(),
@@ -1409,6 +1443,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "created_by".to_string(),
@@ -1423,8 +1458,10 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -1465,7 +1502,7 @@ mod tests {
                 gateway_env_var: String::new(),
             },
             skip_fields: vec![],
-            platform_config: HashMap::new(),
+            platform_config: BTreeMap::new(),
         };
 
         let schema = backend
@@ -1505,8 +1542,10 @@ mod tests {
                 enum_values: None,
                 read_path: None,
                 update_only: false,
+                ..Default::default()
             }],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -1577,8 +1616,10 @@ mod tests {
                 enum_values: None,
                 read_path: None,
                 update_only: false,
+                ..Default::default()
             }],
             identity: test_identity(),
+            read_mapping: Default::default(),
         }];
         let data_sources = vec![test_data_source()];
 
@@ -1654,7 +1695,7 @@ mod tests {
     fn pulumi_module_from_platform_config() {
         let backend = PulumiBackend::new();
         let mut provider = test_provider();
-        let mut pulumi_config = HashMap::new();
+        let mut pulumi_config = BTreeMap::new();
         pulumi_config.insert(
             "pulumi".to_string(),
             toml::Value::Table({
@@ -1703,6 +1744,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "ip_address".to_string(),
@@ -1717,9 +1759,11 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -1860,7 +1904,7 @@ mod tests {
                 gateway_env_var: String::new(),
             },
             skip_fields: vec![],
-            platform_config: HashMap::new(),
+            platform_config: BTreeMap::new(),
         };
 
         let schema = backend
@@ -1898,7 +1942,7 @@ mod tests {
                 gateway_env_var: "BASE_URL".to_string(),
             },
             skip_fields: vec![],
-            platform_config: HashMap::new(),
+            platform_config: BTreeMap::new(),
         };
 
         let schema = backend
@@ -1950,7 +1994,7 @@ mod tests {
                 gateway_env_var: String::new(),
             },
             skip_fields: vec![],
-            platform_config: HashMap::new(),
+            platform_config: BTreeMap::new(),
         };
 
         let artifacts = backend
@@ -2041,6 +2085,7 @@ mod tests {
                 crud: test_crud(),
                 attributes: vec![],
                 identity: test_identity(),
+                read_mapping: Default::default(),
             },
             IacResource {
                 name: "acme_alpha".to_string(),
@@ -2049,6 +2094,7 @@ mod tests {
                 crud: test_crud(),
                 attributes: vec![],
                 identity: test_identity(),
+                read_mapping: Default::default(),
             },
             IacResource {
                 name: "acme_middle".to_string(),
@@ -2057,6 +2103,7 @@ mod tests {
                 crud: test_crud(),
                 attributes: vec![],
                 identity: test_identity(),
+                read_mapping: Default::default(),
             },
         ];
 
@@ -2086,6 +2133,7 @@ mod tests {
                 read_schema: "GetZ".to_string(),
                 read_response_schema: None,
                 attributes: vec![],
+                read_mapping: Default::default(),
             },
             IacDataSource {
                 name: "acme_a_info".to_string(),
@@ -2094,6 +2142,7 @@ mod tests {
                 read_schema: "GetA".to_string(),
                 read_response_schema: None,
                 attributes: vec![],
+                read_mapping: Default::default(),
             },
         ];
 
@@ -2123,6 +2172,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.default, Some(serde_json::json!("us-east-1")));
@@ -2144,6 +2194,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.default, Some(serde_json::json!(8080)));
@@ -2164,6 +2215,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.default, Some(serde_json::Value::Null));
@@ -2186,6 +2238,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert!(prop.description.is_none(), "empty description should become None");
@@ -2206,6 +2259,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.description.as_deref(), Some("A field"));
@@ -2253,6 +2307,7 @@ mod tests {
             read_schema: "LookupReq".to_string(),
             read_response_schema: None,
             attributes: vec![],
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -2310,7 +2365,7 @@ mod tests {
                 gateway_env_var: String::new(),
             },
             skip_fields: vec![],
-            platform_config: HashMap::new(),
+            platform_config: BTreeMap::new(),
         };
 
         let schema = backend
@@ -2356,6 +2411,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "result".to_string(),
@@ -2370,8 +2426,10 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -2416,6 +2474,7 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
                 IacAttribute {
                     api_name: "opt".to_string(),
@@ -2430,9 +2489,11 @@ mod tests {
                     enum_values: None,
                     read_path: None,
                     update_only: false,
+                    ..Default::default()
                 },
             ],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -2490,6 +2551,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.secret, Some(true));
@@ -2513,6 +2575,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert!(prop.secret.is_none());
@@ -2550,7 +2613,7 @@ mod tests {
     fn platform_config_pulumi_without_module_defaults_to_index() {
         let backend = PulumiBackend::new();
         let mut provider = test_provider();
-        let mut pulumi_config = HashMap::new();
+        let mut pulumi_config = BTreeMap::new();
         pulumi_config.insert(
             "pulumi".to_string(),
             toml::Value::Table({
@@ -2568,6 +2631,7 @@ mod tests {
             crud: test_crud(),
             attributes: vec![],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -2586,7 +2650,7 @@ mod tests {
     fn platform_config_pulumi_module_non_string_defaults_to_index() {
         let backend = PulumiBackend::new();
         let mut provider = test_provider();
-        let mut pulumi_config = HashMap::new();
+        let mut pulumi_config = BTreeMap::new();
         pulumi_config.insert(
             "pulumi".to_string(),
             toml::Value::Table({
@@ -2604,6 +2668,7 @@ mod tests {
             crud: test_crud(),
             attributes: vec![],
             identity: test_identity(),
+            read_mapping: Default::default(),
         };
 
         let schema = backend
@@ -2884,6 +2949,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.secret, Some(true));
@@ -2905,6 +2971,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.replace_on_changes, Some(true));
@@ -2926,6 +2993,7 @@ mod tests {
             enum_values: None,
             read_path: None,
             update_only: false,
+            ..Default::default()
         };
         let prop = PropertySpec::from(&attr);
         assert_eq!(prop.default, Some(serde_json::json!(42)));
