@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "cargo_lock_sha256": "4cc76f4a29871c931bc394242b712b3973c3e6db078821eeba56feb18901cfc6",
+  "cargo_lock_sha256": "a785b4d37ad26f17d0019f4124ad5173260c069a2d4a1c44c912f6b9056c7e89",
   "manifest_sha256": {
-    "Cargo.toml": "3b86e947c69a132b8175b5a8c51904aa9a6c70bc8957e29f84c118ff97bc27fb"
+    "Cargo.toml": "0b754b6e012e42507785c796510179fd13283ff90ef3057568a968f7382da691"
   },
   "target_resolves": {
     "base": {
@@ -532,7 +532,7 @@
           "proc-macro"
         ]
       },
-      "pulumi-forge-0.1.6": {
+      "pulumi-forge-0.1.7": {
         "runtime_dependencies": [
           {
             "name": "iac_forge",
@@ -2305,7 +2305,7 @@
       "edition": "2021",
       "build_script": "build.rs"
     },
-    "pulumi-forge-0.1.6": {
+    "pulumi-forge-0.1.7": {
       "edition": "2024",
       "lib_target": {
         "name": "pulumi_forge",
